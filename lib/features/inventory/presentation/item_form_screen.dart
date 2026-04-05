@@ -85,7 +85,7 @@ class _InventoryItemFormScreenState
         _codeLoadError = null;
       });
     } catch (error) {
-      print('Error generating item code: $error');
+      debugPrint('Error generating item code: $error');
       if (!mounted) {
         return;
       }
