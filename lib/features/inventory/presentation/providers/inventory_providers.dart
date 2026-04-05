@@ -266,7 +266,8 @@ class InventoryManagerNotifier extends StateNotifier<InventoryManageState> {
 
 final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
   final database = ref.watch(databaseProvider);
-  return DriftInventoryRepository(database);
+  final documentSeriesService = ref.watch(documentSeriesServiceProvider);
+  return DriftInventoryRepository(database, documentSeriesService);
 });
 
 final inventoryManagerProvider =

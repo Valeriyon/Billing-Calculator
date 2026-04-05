@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide Column;
 
 import '../../../core/database/app_database.dart';
+import '../../../core/services/document_series_service.dart';
 import '../../../core/database/tables/inventory_items.dart';
 import '../domain/inventory_item_model.dart';
 
@@ -14,9 +15,10 @@ abstract class InventoryRepository {
 }
 
 class DriftInventoryRepository implements InventoryRepository {
-  DriftInventoryRepository(this._db);
+  DriftInventoryRepository(this._db, this._documentSeriesService);
 
   final AppDatabase _db;
+  final DocumentSeriesService _documentSeriesService;
 
   @override
   Stream<List<InventoryItemModel>> watchAllItems({bool includeArchived = false}) {
@@ -36,36 +38,16 @@ class DriftInventoryRepository implements InventoryRepository {
 
   @override
   Future<String> getNextItemCode() async {
-    await _db.ensureDefaultItemSeries();
-    final series = await _db.getSeriesByModule(AppDatabase.itemSeriesModule);
-    if (series == null) {
-      throw StateError('Item series not found');
-    }
-    return _formatSeriesCode(
-      pattern: series.pattern,
-      prefix: series.prefix,
-      suffix: series.suffix,
-      currentNumber: series.currentNumber,
+    return _documentSeriesService.getNextFormattedNumber(
+      DocumentSeriesService.itemModule,
     );
   }
 
   @override
   Future<int> insertItem(InventoryItemDraft draft) async {
     return _db.transaction(() async {
-      await _db.ensureDefaultItemSeries();
-      final series = await _db.getSeriesByModule(AppDatabase.itemSeriesModule);
-      if (series == null) {
-        throw StateError('Item series not found');
-      }
-      if (series.status != 1) {
-        throw StateError('Item series is inactive');
-      }
-
-      final normalizedCode = _formatSeriesCode(
-        pattern: series.pattern,
-        prefix: series.prefix,
-        suffix: series.suffix,
-        currentNumber: series.currentNumber,
+      final normalizedCode = await _documentSeriesService.getNextFormattedNumber(
+        DocumentSeriesService.itemModule,
       );
 
       final existing = await _db.getInventoryItemByCode(normalizedCode);
@@ -92,7 +74,7 @@ class DriftInventoryRepository implements InventoryRepository {
         ),
       );
 
-      await _db.incrementSeriesNumber(AppDatabase.itemSeriesModule);
+      await _documentSeriesService.incrementSeries(DocumentSeriesService.itemModule);
       return id;
     });
   }
@@ -184,33 +166,4 @@ class DriftInventoryRepository implements InventoryRepository {
     );
   }
 
-  String _formatSeriesCode({
-    required String pattern,
-    required String? prefix,
-    required String? suffix,
-    required int currentNumber,
-  }) {
-    final prefixValue = (prefix ?? '').trim();
-    final suffixValue = (suffix ?? '').trim();
-
-    var output = pattern
-        .replaceAll('{prefix}', prefixValue)
-        .replaceAll('{current_number}', currentNumber.toString())
-        .replaceAll('{suffix}', suffixValue);
-
-    output = output
-        .replaceAll('--', '-')
-        .replaceAll('//', '/')
-        .replaceAll('__', '_')
-        .trim();
-
-    if (output.startsWith('-') || output.startsWith('/') || output.startsWith('_')) {
-      output = output.substring(1);
-    }
-    if (output.endsWith('-') || output.endsWith('/') || output.endsWith('_')) {
-      output = output.substring(0, output.length - 1);
-    }
-
-    return output.isEmpty ? currentNumber.toString() : output;
-  }
 }
