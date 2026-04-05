@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/widgets/common_app_bar.dart';
 import '../../settings/domain/preferences_model.dart';
 
 /// Settings screen for theme, language, and accessibility options
@@ -16,7 +17,7 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: const CommonAppBar(title: Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.all(AppSizes.paddingLarge),
         children: [

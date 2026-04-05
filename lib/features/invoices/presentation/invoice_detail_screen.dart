@@ -7,6 +7,7 @@ import '../../../core/utils/date_helpers.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/invoices.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/widgets/common_app_bar.dart';
 
 /// Invoice detail screen showing full invoice information
 class InvoiceDetailScreen extends ConsumerStatefulWidget {
@@ -52,14 +53,14 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
 
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Invoice')),
+        appBar: const CommonAppBar(title: Text('Invoice')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_invoice == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Invoice')),
+        appBar: const CommonAppBar(title: Text('Invoice')),
         body: const Center(child: Text('Invoice not found')),
       );
     }
@@ -68,7 +69,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
     final items = _items ?? [];
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: CommonAppBar(
         title: Text(invoice.invoiceNo),
         actions: [
           IconButton(

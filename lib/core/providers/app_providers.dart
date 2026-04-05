@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/settings/domain/preferences_model.dart';
 import '../database/app_database.dart';
+import '../services/document_series_service.dart';
 
 /// Provider for SharedPreferences instance
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
@@ -11,6 +12,12 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 /// Provider for the database instance
 final databaseProvider = Provider<AppDatabase>((ref) {
   return AppDatabase();
+});
+
+/// Provider for document series formatter/increment service
+final documentSeriesServiceProvider = Provider<DocumentSeriesService>((ref) {
+  final database = ref.watch(databaseProvider);
+  return DocumentSeriesService(database);
 });
 
 /// Provider for user preferences with persistence

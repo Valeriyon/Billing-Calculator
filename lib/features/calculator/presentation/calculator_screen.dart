@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_format.dart';
+import '../../../core/widgets/common_app_bar.dart';
 import '../domain/calc_logic.dart';
 import '../domain/bill_item.dart';
 import 'widgets/calc_display.dart';
@@ -20,14 +21,14 @@ class CalculatorScreen extends ConsumerWidget {
     final calcState = ref.watch(calculatorProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: CommonAppBar(
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        title: null,
+        title: const SizedBox.shrink(),
         actions: [
           // Checkout button with total in app bar
           _AppBarCheckoutButton(

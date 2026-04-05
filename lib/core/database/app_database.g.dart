@@ -1018,16 +1018,1153 @@ class InvoiceItemsCompanion extends UpdateCompanion<InvoiceItem> {
   }
 }
 
+class $InventoryItemsTable extends InventoryItems
+    with TableInfo<$InventoryItemsTable, InventoryItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $InventoryItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+      'code', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 50),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _barcodeMeta =
+      const VerificationMeta('barcode');
+  @override
+  late final GeneratedColumn<String> barcode = GeneratedColumn<String>(
+      'barcode', aliasedName, true,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 120),
+      type: DriftSqlType.string,
+      requiredDuringInsert: false);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 120),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _categoryMeta =
+      const VerificationMeta('category');
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+      'category', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 60),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _brandMeta = const VerificationMeta('brand');
+  @override
+  late final GeneratedColumn<String> brand = GeneratedColumn<String>(
+      'brand', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 60),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _priceMeta = const VerificationMeta('price');
+  @override
+  late final GeneratedColumn<double> price = GeneratedColumn<double>(
+      'price', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _uomMeta = const VerificationMeta('uom');
+  @override
+  late final GeneratedColumn<String> uom = GeneratedColumn<String>(
+      'uom', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 20),
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pcs'));
+  static const VerificationMeta _unitValueMeta =
+      const VerificationMeta('unitValue');
+  @override
+  late final GeneratedColumn<double> unitValue = GeneratedColumn<double>(
+      'unit_value', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1.0));
+  static const VerificationMeta _imagePathMeta =
+      const VerificationMeta('imagePath');
+  @override
+  late final GeneratedColumn<String> imagePath = GeneratedColumn<String>(
+      'image_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumnWithTypeConverter<InventoryItemStatus, int> status =
+      GeneratedColumn<int>('status', aliasedName, false,
+              type: DriftSqlType.int,
+              requiredDuringInsert: false,
+              defaultValue: Constant(InventoryItemStatus.available.index))
+          .withConverter<InventoryItemStatus>(
+              $InventoryItemsTable.$converterstatus);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        code,
+        barcode,
+        name,
+        category,
+        brand,
+        price,
+        uom,
+        unitValue,
+        imagePath,
+        status,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'inventory_items';
+  @override
+  VerificationContext validateIntegrity(Insertable<InventoryItem> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('code')) {
+      context.handle(
+          _codeMeta, code.isAcceptableOrUnknown(data['code']!, _codeMeta));
+    } else if (isInserting) {
+      context.missing(_codeMeta);
+    }
+    if (data.containsKey('barcode')) {
+      context.handle(_barcodeMeta,
+          barcode.isAcceptableOrUnknown(data['barcode']!, _barcodeMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(_categoryMeta,
+          category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('brand')) {
+      context.handle(
+          _brandMeta, brand.isAcceptableOrUnknown(data['brand']!, _brandMeta));
+    } else if (isInserting) {
+      context.missing(_brandMeta);
+    }
+    if (data.containsKey('price')) {
+      context.handle(
+          _priceMeta, price.isAcceptableOrUnknown(data['price']!, _priceMeta));
+    } else if (isInserting) {
+      context.missing(_priceMeta);
+    }
+    if (data.containsKey('uom')) {
+      context.handle(
+          _uomMeta, uom.isAcceptableOrUnknown(data['uom']!, _uomMeta));
+    }
+    if (data.containsKey('unit_value')) {
+      context.handle(_unitValueMeta,
+          unitValue.isAcceptableOrUnknown(data['unit_value']!, _unitValueMeta));
+    }
+    if (data.containsKey('image_path')) {
+      context.handle(_imagePathMeta,
+          imagePath.isAcceptableOrUnknown(data['image_path']!, _imagePathMeta));
+    }
+    context.handle(_statusMeta, const VerificationResult.success());
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  InventoryItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return InventoryItem(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      code: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}code'])!,
+      barcode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}barcode']),
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      category: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
+      brand: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}brand'])!,
+      price: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}price'])!,
+      uom: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}uom'])!,
+      unitValue: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}unit_value'])!,
+      imagePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}image_path']),
+      status: $InventoryItemsTable.$converterstatus.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}status'])!),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $InventoryItemsTable createAlias(String alias) {
+    return $InventoryItemsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<InventoryItemStatus, int, int> $converterstatus =
+      const EnumIndexConverter<InventoryItemStatus>(InventoryItemStatus.values);
+}
+
+class InventoryItem extends DataClass implements Insertable<InventoryItem> {
+  /// Primary key - auto increment
+  final int id;
+
+  /// Unique internal item code (SKU)
+  final String code;
+
+  /// Optional scannable barcode value
+  final String? barcode;
+
+  /// Display name
+  final String name;
+
+  /// Category label
+  final String category;
+
+  /// Brand label
+  final String brand;
+
+  /// Unit price
+  final double price;
+
+  /// Unit of measurement (pcs, kg, l, etc.)
+  final String uom;
+
+  /// Quantity represented by one price unit (e.g. 1 kg, 500 g)
+  final double unitValue;
+
+  /// Optional local image path
+  final String? imagePath;
+
+  /// Availability status
+  final InventoryItemStatus status;
+
+  /// Created timestamp
+  final DateTime createdAt;
+  const InventoryItem(
+      {required this.id,
+      required this.code,
+      this.barcode,
+      required this.name,
+      required this.category,
+      required this.brand,
+      required this.price,
+      required this.uom,
+      required this.unitValue,
+      this.imagePath,
+      required this.status,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['code'] = Variable<String>(code);
+    if (!nullToAbsent || barcode != null) {
+      map['barcode'] = Variable<String>(barcode);
+    }
+    map['name'] = Variable<String>(name);
+    map['category'] = Variable<String>(category);
+    map['brand'] = Variable<String>(brand);
+    map['price'] = Variable<double>(price);
+    map['uom'] = Variable<String>(uom);
+    map['unit_value'] = Variable<double>(unitValue);
+    if (!nullToAbsent || imagePath != null) {
+      map['image_path'] = Variable<String>(imagePath);
+    }
+    {
+      map['status'] =
+          Variable<int>($InventoryItemsTable.$converterstatus.toSql(status));
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  InventoryItemsCompanion toCompanion(bool nullToAbsent) {
+    return InventoryItemsCompanion(
+      id: Value(id),
+      code: Value(code),
+      barcode: barcode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(barcode),
+      name: Value(name),
+      category: Value(category),
+      brand: Value(brand),
+      price: Value(price),
+      uom: Value(uom),
+      unitValue: Value(unitValue),
+      imagePath: imagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imagePath),
+      status: Value(status),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory InventoryItem.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return InventoryItem(
+      id: serializer.fromJson<int>(json['id']),
+      code: serializer.fromJson<String>(json['code']),
+      barcode: serializer.fromJson<String?>(json['barcode']),
+      name: serializer.fromJson<String>(json['name']),
+      category: serializer.fromJson<String>(json['category']),
+      brand: serializer.fromJson<String>(json['brand']),
+      price: serializer.fromJson<double>(json['price']),
+      uom: serializer.fromJson<String>(json['uom']),
+      unitValue: serializer.fromJson<double>(json['unitValue']),
+      imagePath: serializer.fromJson<String?>(json['imagePath']),
+      status: $InventoryItemsTable.$converterstatus
+          .fromJson(serializer.fromJson<int>(json['status'])),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'code': serializer.toJson<String>(code),
+      'barcode': serializer.toJson<String?>(barcode),
+      'name': serializer.toJson<String>(name),
+      'category': serializer.toJson<String>(category),
+      'brand': serializer.toJson<String>(brand),
+      'price': serializer.toJson<double>(price),
+      'uom': serializer.toJson<String>(uom),
+      'unitValue': serializer.toJson<double>(unitValue),
+      'imagePath': serializer.toJson<String?>(imagePath),
+      'status': serializer
+          .toJson<int>($InventoryItemsTable.$converterstatus.toJson(status)),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  InventoryItem copyWith(
+          {int? id,
+          String? code,
+          Value<String?> barcode = const Value.absent(),
+          String? name,
+          String? category,
+          String? brand,
+          double? price,
+          String? uom,
+          double? unitValue,
+          Value<String?> imagePath = const Value.absent(),
+          InventoryItemStatus? status,
+          DateTime? createdAt}) =>
+      InventoryItem(
+        id: id ?? this.id,
+        code: code ?? this.code,
+        barcode: barcode.present ? barcode.value : this.barcode,
+        name: name ?? this.name,
+        category: category ?? this.category,
+        brand: brand ?? this.brand,
+        price: price ?? this.price,
+        uom: uom ?? this.uom,
+        unitValue: unitValue ?? this.unitValue,
+        imagePath: imagePath.present ? imagePath.value : this.imagePath,
+        status: status ?? this.status,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  InventoryItem copyWithCompanion(InventoryItemsCompanion data) {
+    return InventoryItem(
+      id: data.id.present ? data.id.value : this.id,
+      code: data.code.present ? data.code.value : this.code,
+      barcode: data.barcode.present ? data.barcode.value : this.barcode,
+      name: data.name.present ? data.name.value : this.name,
+      category: data.category.present ? data.category.value : this.category,
+      brand: data.brand.present ? data.brand.value : this.brand,
+      price: data.price.present ? data.price.value : this.price,
+      uom: data.uom.present ? data.uom.value : this.uom,
+      unitValue: data.unitValue.present ? data.unitValue.value : this.unitValue,
+      imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InventoryItem(')
+          ..write('id: $id, ')
+          ..write('code: $code, ')
+          ..write('barcode: $barcode, ')
+          ..write('name: $name, ')
+          ..write('category: $category, ')
+          ..write('brand: $brand, ')
+          ..write('price: $price, ')
+          ..write('uom: $uom, ')
+          ..write('unitValue: $unitValue, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, code, barcode, name, category, brand,
+      price, uom, unitValue, imagePath, status, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is InventoryItem &&
+          other.id == this.id &&
+          other.code == this.code &&
+          other.barcode == this.barcode &&
+          other.name == this.name &&
+          other.category == this.category &&
+          other.brand == this.brand &&
+          other.price == this.price &&
+          other.uom == this.uom &&
+          other.unitValue == this.unitValue &&
+          other.imagePath == this.imagePath &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt);
+}
+
+class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
+  final Value<int> id;
+  final Value<String> code;
+  final Value<String?> barcode;
+  final Value<String> name;
+  final Value<String> category;
+  final Value<String> brand;
+  final Value<double> price;
+  final Value<String> uom;
+  final Value<double> unitValue;
+  final Value<String?> imagePath;
+  final Value<InventoryItemStatus> status;
+  final Value<DateTime> createdAt;
+  const InventoryItemsCompanion({
+    this.id = const Value.absent(),
+    this.code = const Value.absent(),
+    this.barcode = const Value.absent(),
+    this.name = const Value.absent(),
+    this.category = const Value.absent(),
+    this.brand = const Value.absent(),
+    this.price = const Value.absent(),
+    this.uom = const Value.absent(),
+    this.unitValue = const Value.absent(),
+    this.imagePath = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  InventoryItemsCompanion.insert({
+    this.id = const Value.absent(),
+    required String code,
+    this.barcode = const Value.absent(),
+    required String name,
+    required String category,
+    required String brand,
+    required double price,
+    this.uom = const Value.absent(),
+    this.unitValue = const Value.absent(),
+    this.imagePath = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  })  : code = Value(code),
+        name = Value(name),
+        category = Value(category),
+        brand = Value(brand),
+        price = Value(price);
+  static Insertable<InventoryItem> custom({
+    Expression<int>? id,
+    Expression<String>? code,
+    Expression<String>? barcode,
+    Expression<String>? name,
+    Expression<String>? category,
+    Expression<String>? brand,
+    Expression<double>? price,
+    Expression<String>? uom,
+    Expression<double>? unitValue,
+    Expression<String>? imagePath,
+    Expression<int>? status,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (code != null) 'code': code,
+      if (barcode != null) 'barcode': barcode,
+      if (name != null) 'name': name,
+      if (category != null) 'category': category,
+      if (brand != null) 'brand': brand,
+      if (price != null) 'price': price,
+      if (uom != null) 'uom': uom,
+      if (unitValue != null) 'unit_value': unitValue,
+      if (imagePath != null) 'image_path': imagePath,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  InventoryItemsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? code,
+      Value<String?>? barcode,
+      Value<String>? name,
+      Value<String>? category,
+      Value<String>? brand,
+      Value<double>? price,
+      Value<String>? uom,
+      Value<double>? unitValue,
+      Value<String?>? imagePath,
+      Value<InventoryItemStatus>? status,
+      Value<DateTime>? createdAt}) {
+    return InventoryItemsCompanion(
+      id: id ?? this.id,
+      code: code ?? this.code,
+      barcode: barcode ?? this.barcode,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      brand: brand ?? this.brand,
+      price: price ?? this.price,
+      uom: uom ?? this.uom,
+      unitValue: unitValue ?? this.unitValue,
+      imagePath: imagePath ?? this.imagePath,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (barcode.present) {
+      map['barcode'] = Variable<String>(barcode.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (brand.present) {
+      map['brand'] = Variable<String>(brand.value);
+    }
+    if (price.present) {
+      map['price'] = Variable<double>(price.value);
+    }
+    if (uom.present) {
+      map['uom'] = Variable<String>(uom.value);
+    }
+    if (unitValue.present) {
+      map['unit_value'] = Variable<double>(unitValue.value);
+    }
+    if (imagePath.present) {
+      map['image_path'] = Variable<String>(imagePath.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<int>(
+          $InventoryItemsTable.$converterstatus.toSql(status.value));
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InventoryItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('code: $code, ')
+          ..write('barcode: $barcode, ')
+          ..write('name: $name, ')
+          ..write('category: $category, ')
+          ..write('brand: $brand, ')
+          ..write('price: $price, ')
+          ..write('uom: $uom, ')
+          ..write('unitValue: $unitValue, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DocumentSeriesNumbersTable extends DocumentSeriesNumbers
+    with TableInfo<$DocumentSeriesNumbersTable, DocumentSeriesNumber> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DocumentSeriesNumbersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _moduleMeta = const VerificationMeta('module');
+  @override
+  late final GeneratedColumn<String> module = GeneratedColumn<String>(
+      'module', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 40),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _startingNumberMeta =
+      const VerificationMeta('startingNumber');
+  @override
+  late final GeneratedColumn<int> startingNumber = GeneratedColumn<int>(
+      'starting_number', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1001));
+  static const VerificationMeta _currentNumberMeta =
+      const VerificationMeta('currentNumber');
+  @override
+  late final GeneratedColumn<int> currentNumber = GeneratedColumn<int>(
+      'current_number', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1001));
+  static const VerificationMeta _prefixMeta = const VerificationMeta('prefix');
+  @override
+  late final GeneratedColumn<String> prefix = GeneratedColumn<String>(
+      'prefix', aliasedName, true,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 20),
+      type: DriftSqlType.string,
+      requiredDuringInsert: false);
+  static const VerificationMeta _suffixMeta = const VerificationMeta('suffix');
+  @override
+  late final GeneratedColumn<String> suffix = GeneratedColumn<String>(
+      'suffix', aliasedName, true,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 20),
+      type: DriftSqlType.string,
+      requiredDuringInsert: false);
+  static const VerificationMeta _patternMeta =
+      const VerificationMeta('pattern');
+  @override
+  late final GeneratedColumn<String> pattern = GeneratedColumn<String>(
+      'pattern', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{prefix}-{current_number}'));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<int> status = GeneratedColumn<int>(
+      'status', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        module,
+        startingNumber,
+        currentNumber,
+        prefix,
+        suffix,
+        pattern,
+        status,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'document_series_numbers';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<DocumentSeriesNumber> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('module')) {
+      context.handle(_moduleMeta,
+          module.isAcceptableOrUnknown(data['module']!, _moduleMeta));
+    } else if (isInserting) {
+      context.missing(_moduleMeta);
+    }
+    if (data.containsKey('starting_number')) {
+      context.handle(
+          _startingNumberMeta,
+          startingNumber.isAcceptableOrUnknown(
+              data['starting_number']!, _startingNumberMeta));
+    }
+    if (data.containsKey('current_number')) {
+      context.handle(
+          _currentNumberMeta,
+          currentNumber.isAcceptableOrUnknown(
+              data['current_number']!, _currentNumberMeta));
+    }
+    if (data.containsKey('prefix')) {
+      context.handle(_prefixMeta,
+          prefix.isAcceptableOrUnknown(data['prefix']!, _prefixMeta));
+    }
+    if (data.containsKey('suffix')) {
+      context.handle(_suffixMeta,
+          suffix.isAcceptableOrUnknown(data['suffix']!, _suffixMeta));
+    }
+    if (data.containsKey('pattern')) {
+      context.handle(_patternMeta,
+          pattern.isAcceptableOrUnknown(data['pattern']!, _patternMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DocumentSeriesNumber map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DocumentSeriesNumber(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      module: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}module'])!,
+      startingNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}starting_number'])!,
+      currentNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}current_number'])!,
+      prefix: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}prefix']),
+      suffix: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}suffix']),
+      pattern: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}pattern'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}status'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $DocumentSeriesNumbersTable createAlias(String alias) {
+    return $DocumentSeriesNumbersTable(attachedDatabase, alias);
+  }
+}
+
+class DocumentSeriesNumber extends DataClass
+    implements Insertable<DocumentSeriesNumber> {
+  final int id;
+
+  /// Module key, e.g. 'item', 'invoice'
+  final String module;
+
+  /// First number of the series
+  final int startingNumber;
+
+  /// Current number to be used for formatting
+  final int currentNumber;
+
+  /// Optional prefix in the formatted code
+  final String? prefix;
+
+  /// Optional suffix in the formatted code
+  final String? suffix;
+
+  /// Supported tokens: {prefix}, {current_number}, {suffix}
+  final String pattern;
+
+  /// 1: Active, 0: Inactive
+  final int status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const DocumentSeriesNumber(
+      {required this.id,
+      required this.module,
+      required this.startingNumber,
+      required this.currentNumber,
+      this.prefix,
+      this.suffix,
+      required this.pattern,
+      required this.status,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['module'] = Variable<String>(module);
+    map['starting_number'] = Variable<int>(startingNumber);
+    map['current_number'] = Variable<int>(currentNumber);
+    if (!nullToAbsent || prefix != null) {
+      map['prefix'] = Variable<String>(prefix);
+    }
+    if (!nullToAbsent || suffix != null) {
+      map['suffix'] = Variable<String>(suffix);
+    }
+    map['pattern'] = Variable<String>(pattern);
+    map['status'] = Variable<int>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  DocumentSeriesNumbersCompanion toCompanion(bool nullToAbsent) {
+    return DocumentSeriesNumbersCompanion(
+      id: Value(id),
+      module: Value(module),
+      startingNumber: Value(startingNumber),
+      currentNumber: Value(currentNumber),
+      prefix:
+          prefix == null && nullToAbsent ? const Value.absent() : Value(prefix),
+      suffix:
+          suffix == null && nullToAbsent ? const Value.absent() : Value(suffix),
+      pattern: Value(pattern),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory DocumentSeriesNumber.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DocumentSeriesNumber(
+      id: serializer.fromJson<int>(json['id']),
+      module: serializer.fromJson<String>(json['module']),
+      startingNumber: serializer.fromJson<int>(json['startingNumber']),
+      currentNumber: serializer.fromJson<int>(json['currentNumber']),
+      prefix: serializer.fromJson<String?>(json['prefix']),
+      suffix: serializer.fromJson<String?>(json['suffix']),
+      pattern: serializer.fromJson<String>(json['pattern']),
+      status: serializer.fromJson<int>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'module': serializer.toJson<String>(module),
+      'startingNumber': serializer.toJson<int>(startingNumber),
+      'currentNumber': serializer.toJson<int>(currentNumber),
+      'prefix': serializer.toJson<String?>(prefix),
+      'suffix': serializer.toJson<String?>(suffix),
+      'pattern': serializer.toJson<String>(pattern),
+      'status': serializer.toJson<int>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  DocumentSeriesNumber copyWith(
+          {int? id,
+          String? module,
+          int? startingNumber,
+          int? currentNumber,
+          Value<String?> prefix = const Value.absent(),
+          Value<String?> suffix = const Value.absent(),
+          String? pattern,
+          int? status,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      DocumentSeriesNumber(
+        id: id ?? this.id,
+        module: module ?? this.module,
+        startingNumber: startingNumber ?? this.startingNumber,
+        currentNumber: currentNumber ?? this.currentNumber,
+        prefix: prefix.present ? prefix.value : this.prefix,
+        suffix: suffix.present ? suffix.value : this.suffix,
+        pattern: pattern ?? this.pattern,
+        status: status ?? this.status,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  DocumentSeriesNumber copyWithCompanion(DocumentSeriesNumbersCompanion data) {
+    return DocumentSeriesNumber(
+      id: data.id.present ? data.id.value : this.id,
+      module: data.module.present ? data.module.value : this.module,
+      startingNumber: data.startingNumber.present
+          ? data.startingNumber.value
+          : this.startingNumber,
+      currentNumber: data.currentNumber.present
+          ? data.currentNumber.value
+          : this.currentNumber,
+      prefix: data.prefix.present ? data.prefix.value : this.prefix,
+      suffix: data.suffix.present ? data.suffix.value : this.suffix,
+      pattern: data.pattern.present ? data.pattern.value : this.pattern,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DocumentSeriesNumber(')
+          ..write('id: $id, ')
+          ..write('module: $module, ')
+          ..write('startingNumber: $startingNumber, ')
+          ..write('currentNumber: $currentNumber, ')
+          ..write('prefix: $prefix, ')
+          ..write('suffix: $suffix, ')
+          ..write('pattern: $pattern, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, module, startingNumber, currentNumber,
+      prefix, suffix, pattern, status, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DocumentSeriesNumber &&
+          other.id == this.id &&
+          other.module == this.module &&
+          other.startingNumber == this.startingNumber &&
+          other.currentNumber == this.currentNumber &&
+          other.prefix == this.prefix &&
+          other.suffix == this.suffix &&
+          other.pattern == this.pattern &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DocumentSeriesNumbersCompanion
+    extends UpdateCompanion<DocumentSeriesNumber> {
+  final Value<int> id;
+  final Value<String> module;
+  final Value<int> startingNumber;
+  final Value<int> currentNumber;
+  final Value<String?> prefix;
+  final Value<String?> suffix;
+  final Value<String> pattern;
+  final Value<int> status;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const DocumentSeriesNumbersCompanion({
+    this.id = const Value.absent(),
+    this.module = const Value.absent(),
+    this.startingNumber = const Value.absent(),
+    this.currentNumber = const Value.absent(),
+    this.prefix = const Value.absent(),
+    this.suffix = const Value.absent(),
+    this.pattern = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  DocumentSeriesNumbersCompanion.insert({
+    this.id = const Value.absent(),
+    required String module,
+    this.startingNumber = const Value.absent(),
+    this.currentNumber = const Value.absent(),
+    this.prefix = const Value.absent(),
+    this.suffix = const Value.absent(),
+    this.pattern = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : module = Value(module);
+  static Insertable<DocumentSeriesNumber> custom({
+    Expression<int>? id,
+    Expression<String>? module,
+    Expression<int>? startingNumber,
+    Expression<int>? currentNumber,
+    Expression<String>? prefix,
+    Expression<String>? suffix,
+    Expression<String>? pattern,
+    Expression<int>? status,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (module != null) 'module': module,
+      if (startingNumber != null) 'starting_number': startingNumber,
+      if (currentNumber != null) 'current_number': currentNumber,
+      if (prefix != null) 'prefix': prefix,
+      if (suffix != null) 'suffix': suffix,
+      if (pattern != null) 'pattern': pattern,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  DocumentSeriesNumbersCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? module,
+      Value<int>? startingNumber,
+      Value<int>? currentNumber,
+      Value<String?>? prefix,
+      Value<String?>? suffix,
+      Value<String>? pattern,
+      Value<int>? status,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt}) {
+    return DocumentSeriesNumbersCompanion(
+      id: id ?? this.id,
+      module: module ?? this.module,
+      startingNumber: startingNumber ?? this.startingNumber,
+      currentNumber: currentNumber ?? this.currentNumber,
+      prefix: prefix ?? this.prefix,
+      suffix: suffix ?? this.suffix,
+      pattern: pattern ?? this.pattern,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (module.present) {
+      map['module'] = Variable<String>(module.value);
+    }
+    if (startingNumber.present) {
+      map['starting_number'] = Variable<int>(startingNumber.value);
+    }
+    if (currentNumber.present) {
+      map['current_number'] = Variable<int>(currentNumber.value);
+    }
+    if (prefix.present) {
+      map['prefix'] = Variable<String>(prefix.value);
+    }
+    if (suffix.present) {
+      map['suffix'] = Variable<String>(suffix.value);
+    }
+    if (pattern.present) {
+      map['pattern'] = Variable<String>(pattern.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<int>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DocumentSeriesNumbersCompanion(')
+          ..write('id: $id, ')
+          ..write('module: $module, ')
+          ..write('startingNumber: $startingNumber, ')
+          ..write('currentNumber: $currentNumber, ')
+          ..write('prefix: $prefix, ')
+          ..write('suffix: $suffix, ')
+          ..write('pattern: $pattern, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $InvoicesTable invoices = $InvoicesTable(this);
   late final $InvoiceItemsTable invoiceItems = $InvoiceItemsTable(this);
+  late final $InventoryItemsTable inventoryItems = $InventoryItemsTable(this);
+  late final $DocumentSeriesNumbersTable documentSeriesNumbers =
+      $DocumentSeriesNumbersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [invoices, invoiceItems];
+  List<DatabaseSchemaEntity> get allSchemaEntities =>
+      [invoices, invoiceItems, inventoryItems, documentSeriesNumbers];
 }
 
 typedef $$InvoicesTableCreateCompanionBuilder = InvoicesCompanion Function({
@@ -1447,6 +2584,446 @@ class $$InvoiceItemsTableOrderingComposer
   }
 }
 
+typedef $$InventoryItemsTableCreateCompanionBuilder = InventoryItemsCompanion
+    Function({
+  Value<int> id,
+  required String code,
+  Value<String?> barcode,
+  required String name,
+  required String category,
+  required String brand,
+  required double price,
+  Value<String> uom,
+  Value<double> unitValue,
+  Value<String?> imagePath,
+  Value<InventoryItemStatus> status,
+  Value<DateTime> createdAt,
+});
+typedef $$InventoryItemsTableUpdateCompanionBuilder = InventoryItemsCompanion
+    Function({
+  Value<int> id,
+  Value<String> code,
+  Value<String?> barcode,
+  Value<String> name,
+  Value<String> category,
+  Value<String> brand,
+  Value<double> price,
+  Value<String> uom,
+  Value<double> unitValue,
+  Value<String?> imagePath,
+  Value<InventoryItemStatus> status,
+  Value<DateTime> createdAt,
+});
+
+class $$InventoryItemsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $InventoryItemsTable,
+    InventoryItem,
+    $$InventoryItemsTableFilterComposer,
+    $$InventoryItemsTableOrderingComposer,
+    $$InventoryItemsTableCreateCompanionBuilder,
+    $$InventoryItemsTableUpdateCompanionBuilder> {
+  $$InventoryItemsTableTableManager(
+      _$AppDatabase db, $InventoryItemsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$InventoryItemsTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$InventoryItemsTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> code = const Value.absent(),
+            Value<String?> barcode = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> category = const Value.absent(),
+            Value<String> brand = const Value.absent(),
+            Value<double> price = const Value.absent(),
+            Value<String> uom = const Value.absent(),
+            Value<double> unitValue = const Value.absent(),
+            Value<String?> imagePath = const Value.absent(),
+            Value<InventoryItemStatus> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              InventoryItemsCompanion(
+            id: id,
+            code: code,
+            barcode: barcode,
+            name: name,
+            category: category,
+            brand: brand,
+            price: price,
+            uom: uom,
+            unitValue: unitValue,
+            imagePath: imagePath,
+            status: status,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String code,
+            Value<String?> barcode = const Value.absent(),
+            required String name,
+            required String category,
+            required String brand,
+            required double price,
+            Value<String> uom = const Value.absent(),
+            Value<double> unitValue = const Value.absent(),
+            Value<String?> imagePath = const Value.absent(),
+            Value<InventoryItemStatus> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              InventoryItemsCompanion.insert(
+            id: id,
+            code: code,
+            barcode: barcode,
+            name: name,
+            category: category,
+            brand: brand,
+            price: price,
+            uom: uom,
+            unitValue: unitValue,
+            imagePath: imagePath,
+            status: status,
+            createdAt: createdAt,
+          ),
+        ));
+}
+
+class $$InventoryItemsTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $InventoryItemsTable> {
+  $$InventoryItemsTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get code => $state.composableBuilder(
+      column: $state.table.code,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get barcode => $state.composableBuilder(
+      column: $state.table.barcode,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get name => $state.composableBuilder(
+      column: $state.table.name,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get category => $state.composableBuilder(
+      column: $state.table.category,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get brand => $state.composableBuilder(
+      column: $state.table.brand,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<double> get price => $state.composableBuilder(
+      column: $state.table.price,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get uom => $state.composableBuilder(
+      column: $state.table.uom,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<double> get unitValue => $state.composableBuilder(
+      column: $state.table.unitValue,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get imagePath => $state.composableBuilder(
+      column: $state.table.imagePath,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnWithTypeConverterFilters<InventoryItemStatus, InventoryItemStatus, int>
+      get status => $state.composableBuilder(
+          column: $state.table.status,
+          builder: (column, joinBuilders) => ColumnWithTypeConverterFilters(
+              column,
+              joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$InventoryItemsTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $InventoryItemsTable> {
+  $$InventoryItemsTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get code => $state.composableBuilder(
+      column: $state.table.code,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get barcode => $state.composableBuilder(
+      column: $state.table.barcode,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get name => $state.composableBuilder(
+      column: $state.table.name,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get category => $state.composableBuilder(
+      column: $state.table.category,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get brand => $state.composableBuilder(
+      column: $state.table.brand,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<double> get price => $state.composableBuilder(
+      column: $state.table.price,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get uom => $state.composableBuilder(
+      column: $state.table.uom,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<double> get unitValue => $state.composableBuilder(
+      column: $state.table.unitValue,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get imagePath => $state.composableBuilder(
+      column: $state.table.imagePath,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get status => $state.composableBuilder(
+      column: $state.table.status,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
+typedef $$DocumentSeriesNumbersTableCreateCompanionBuilder
+    = DocumentSeriesNumbersCompanion Function({
+  Value<int> id,
+  required String module,
+  Value<int> startingNumber,
+  Value<int> currentNumber,
+  Value<String?> prefix,
+  Value<String?> suffix,
+  Value<String> pattern,
+  Value<int> status,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+typedef $$DocumentSeriesNumbersTableUpdateCompanionBuilder
+    = DocumentSeriesNumbersCompanion Function({
+  Value<int> id,
+  Value<String> module,
+  Value<int> startingNumber,
+  Value<int> currentNumber,
+  Value<String?> prefix,
+  Value<String?> suffix,
+  Value<String> pattern,
+  Value<int> status,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+class $$DocumentSeriesNumbersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $DocumentSeriesNumbersTable,
+    DocumentSeriesNumber,
+    $$DocumentSeriesNumbersTableFilterComposer,
+    $$DocumentSeriesNumbersTableOrderingComposer,
+    $$DocumentSeriesNumbersTableCreateCompanionBuilder,
+    $$DocumentSeriesNumbersTableUpdateCompanionBuilder> {
+  $$DocumentSeriesNumbersTableTableManager(
+      _$AppDatabase db, $DocumentSeriesNumbersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer: $$DocumentSeriesNumbersTableFilterComposer(
+              ComposerState(db, table)),
+          orderingComposer: $$DocumentSeriesNumbersTableOrderingComposer(
+              ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> module = const Value.absent(),
+            Value<int> startingNumber = const Value.absent(),
+            Value<int> currentNumber = const Value.absent(),
+            Value<String?> prefix = const Value.absent(),
+            Value<String?> suffix = const Value.absent(),
+            Value<String> pattern = const Value.absent(),
+            Value<int> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              DocumentSeriesNumbersCompanion(
+            id: id,
+            module: module,
+            startingNumber: startingNumber,
+            currentNumber: currentNumber,
+            prefix: prefix,
+            suffix: suffix,
+            pattern: pattern,
+            status: status,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String module,
+            Value<int> startingNumber = const Value.absent(),
+            Value<int> currentNumber = const Value.absent(),
+            Value<String?> prefix = const Value.absent(),
+            Value<String?> suffix = const Value.absent(),
+            Value<String> pattern = const Value.absent(),
+            Value<int> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              DocumentSeriesNumbersCompanion.insert(
+            id: id,
+            module: module,
+            startingNumber: startingNumber,
+            currentNumber: currentNumber,
+            prefix: prefix,
+            suffix: suffix,
+            pattern: pattern,
+            status: status,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+        ));
+}
+
+class $$DocumentSeriesNumbersTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $DocumentSeriesNumbersTable> {
+  $$DocumentSeriesNumbersTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get module => $state.composableBuilder(
+      column: $state.table.module,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get startingNumber => $state.composableBuilder(
+      column: $state.table.startingNumber,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get currentNumber => $state.composableBuilder(
+      column: $state.table.currentNumber,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get prefix => $state.composableBuilder(
+      column: $state.table.prefix,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get suffix => $state.composableBuilder(
+      column: $state.table.suffix,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get pattern => $state.composableBuilder(
+      column: $state.table.pattern,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get status => $state.composableBuilder(
+      column: $state.table.status,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get updatedAt => $state.composableBuilder(
+      column: $state.table.updatedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$DocumentSeriesNumbersTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $DocumentSeriesNumbersTable> {
+  $$DocumentSeriesNumbersTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get module => $state.composableBuilder(
+      column: $state.table.module,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get startingNumber => $state.composableBuilder(
+      column: $state.table.startingNumber,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get currentNumber => $state.composableBuilder(
+      column: $state.table.currentNumber,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get prefix => $state.composableBuilder(
+      column: $state.table.prefix,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get suffix => $state.composableBuilder(
+      column: $state.table.suffix,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get pattern => $state.composableBuilder(
+      column: $state.table.pattern,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get status => $state.composableBuilder(
+      column: $state.table.status,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get updatedAt => $state.composableBuilder(
+      column: $state.table.updatedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
@@ -1454,4 +3031,8 @@ class $AppDatabaseManager {
       $$InvoicesTableTableManager(_db, _db.invoices);
   $$InvoiceItemsTableTableManager get invoiceItems =>
       $$InvoiceItemsTableTableManager(_db, _db.invoiceItems);
+  $$InventoryItemsTableTableManager get inventoryItems =>
+      $$InventoryItemsTableTableManager(_db, _db.inventoryItems);
+  $$DocumentSeriesNumbersTableTableManager get documentSeriesNumbers =>
+      $$DocumentSeriesNumbersTableTableManager(_db, _db.documentSeriesNumbers);
 }
