@@ -9,6 +9,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/invoices.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/common_app_bar.dart';
 import '../../calculator/domain/calc_logic.dart';
 import '../../calculator/domain/bill_item.dart';
 import 'package:drift/drift.dart' hide Column;
@@ -40,7 +41,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     if (calcState.billItems.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Checkout')),
+        appBar: const CommonAppBar(title: Text('Checkout')),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -69,7 +70,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final grandTotal = subtotal - discountValue;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: CommonAppBar(
         title: const Text('Checkout'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),

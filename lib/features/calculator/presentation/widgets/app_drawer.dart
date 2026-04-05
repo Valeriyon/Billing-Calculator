@@ -76,6 +76,14 @@ class AppDrawer extends ConsumerWidget {
               },
             ),
             _DrawerItem(
+              icon: Icons.inventory_2_outlined,
+              title: 'Manage Items',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/inventory');
+              },
+            ),
+            _DrawerItem(
               icon: Icons.settings,
               title: 'Settings',
               onTap: () {

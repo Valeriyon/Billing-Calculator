@@ -7,28 +7,48 @@ import 'package:path/path.dart' as p;
 
 import 'tables/invoices.dart';
 import 'tables/invoice_items.dart';
+import 'tables/inventory_items.dart';
+import 'tables/document_series_numbers.dart';
 
 part 'app_database.g.dart';
 
 /// Main database class for the billing app
-@DriftDatabase(tables: [Invoices, InvoiceItems])
+@DriftDatabase(
+  tables: [Invoices, InvoiceItems, InventoryItems, DocumentSeriesNumbers],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (Migrator m) async {
         await m.createAll();
+        await ensureDefaultItemSeries();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Handle future migrations here
+        if (from < 2) {
+          await m.createTable(inventoryItems);
+        }
+        if (from >= 2 && from < 3) {
+          await m.addColumn(inventoryItems, inventoryItems.barcode);
+        }
+        if (from >= 3 && from < 4) {
+          await m.addColumn(inventoryItems, inventoryItems.uom);
+          await m.addColumn(inventoryItems, inventoryItems.unitValue);
+        }
+        if (from < 5) {
+          await m.createTable(documentSeriesNumbers);
+          await ensureDefaultItemSeries();
+        }
       },
     );
   }
+
+  static const String itemSeriesModule = 'item';
 
   // ============ Invoice Operations ============
 
@@ -166,6 +186,120 @@ class AppDatabase extends _$AppDatabase {
   Future<int> getTotalItemsCount() async {
     final result = await select(invoiceItems).get();
     return result.length;
+  }
+
+  // ============ Inventory Operations ============
+
+  /// Watch all inventory items (excluding archived by default)
+  Stream<List<InventoryItem>> watchAllInventoryItems({
+    bool includeArchived = false,
+  }) {
+    final query = select(inventoryItems)
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+
+    if (!includeArchived) {
+      query.where(
+        (t) => t.status.isNotValue(InventoryItemStatus.archived.index),
+      );
+    }
+
+    return query.watch();
+  }
+
+  /// Get inventory item by unique code
+  Future<InventoryItem?> getInventoryItemByCode(String code) {
+    return (select(
+      inventoryItems,
+    )..where((t) => t.code.equals(code))).getSingleOrNull();
+  }
+
+  /// Get inventory item by ID
+  Future<InventoryItem?> getInventoryItemById(int id) {
+    return (select(
+      inventoryItems,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
+  /// Insert a new inventory item
+  Future<int> insertInventoryItem(InventoryItemsCompanion item) {
+    return into(inventoryItems).insert(item);
+  }
+
+  /// Update an existing inventory item
+  Future<bool> updateInventoryItem(InventoryItem item) {
+    return update(inventoryItems).replace(item);
+  }
+
+  /// Delete inventory item by ID
+  Future<int> deleteInventoryItem(int id) {
+    return (delete(inventoryItems)..where((t) => t.id.equals(id))).go();
+  }
+
+  // ============ Document Series Operations ============
+
+  Future<DocumentSeriesNumber?> getSeriesByModule(String module) {
+    return (select(documentSeriesNumbers)
+          ..where((t) => t.module.equals(module.trim().toLowerCase())))
+        .getSingleOrNull();
+  }
+
+  Future<void> ensureDefaultItemSeries() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS document_series_numbers (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        module TEXT NOT NULL UNIQUE,
+        starting_number INTEGER NOT NULL DEFAULT 1001,
+        current_number INTEGER NOT NULL DEFAULT 1001,
+        prefix TEXT,
+        suffix TEXT,
+        pattern TEXT NOT NULL DEFAULT '{prefix}-{current_number}',
+        status INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000),
+        updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
+      )
+    ''');
+
+    // Repair older rows where timestamps may have been stored as text.
+    await customStatement('''
+      UPDATE document_series_numbers
+      SET created_at = CAST(strftime('%s', created_at) AS INTEGER) * 1000
+      WHERE typeof(created_at) = 'text'
+    ''');
+
+    await customStatement('''
+      UPDATE document_series_numbers
+      SET updated_at = CAST(strftime('%s', updated_at) AS INTEGER) * 1000
+      WHERE typeof(updated_at) = 'text'
+    ''');
+
+    final existing = await getSeriesByModule(itemSeriesModule);
+    if (existing != null) {
+      return;
+    }
+
+    await into(documentSeriesNumbers).insert(
+      DocumentSeriesNumbersCompanion.insert(
+        module: itemSeriesModule,
+        prefix: const Value('ITM'),
+        startingNumber: const Value(1001),
+        currentNumber: const Value(1001),
+        pattern: const Value('{prefix}-{current_number}'),
+        status: const Value(1),
+      ),
+      mode: InsertMode.insertOrIgnore,
+    );
+  }
+
+  Future<void> incrementSeriesNumber(String module) async {
+    final normalizedModule = module.trim().toLowerCase();
+    final nowMillis = DateTime.now().millisecondsSinceEpoch;
+
+    await customStatement(
+      'UPDATE document_series_numbers '
+      'SET current_number = current_number + 1, updated_at = ? '
+      'WHERE module = ?',
+      [nowMillis, normalizedModule],
+    );
   }
 }
 
