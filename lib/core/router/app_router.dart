@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/calculator/presentation/calculator_screen.dart';
+import '../../features/calculator/presentation/barcode_scanner_screen.dart';
 import '../../features/checkout/presentation/checkout_screen.dart';
 import '../../features/invoices/presentation/invoice_list_screen.dart';
 import '../../features/invoices/presentation/invoice_detail_screen.dart';
@@ -17,6 +18,12 @@ final appRouter = GoRouter(
 
     // Calculator (Main) Screen
     GoRoute(path: '/', builder: (context, state) => const CalculatorScreen()),
+
+    // Barcode Scanner Screen
+    GoRoute(
+      path: '/scanner',
+      builder: (context, state) => const BarcodeScannerScreen(),
+    ),
 
     // Checkout Screen
     GoRoute(
