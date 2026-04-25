@@ -24,6 +24,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   PaymentMode _selectedPaymentMode = PaymentMode.cash;
+  int? _selectedCustomerId;
   double _discountAmount = 0.0;
   final _notesController = TextEditingController();
   bool _isSaving = false;
@@ -124,53 +125,136 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
             const SizedBox(height: AppSizes.spacingLarge),
 
-            // // Payment Mode Section
-            // _SectionCard(
-            //   title: 'Payment Mode',
-            //   child: Row(
-            //     children: [
-            //       _PaymentModeChip(
-            //         label: 'Cash',
-            //         icon: Icons.money,
-            //         color: AppColors.cash,
-            //         isSelected: _selectedPaymentMode == PaymentMode.cash,
-            //         onTap: () =>
-            //             setState(() => _selectedPaymentMode = PaymentMode.cash),
-            //       ),
-            //       const SizedBox(width: AppSizes.spacingSmall),
-            //       _PaymentModeChip(
-            //         label: 'UPI',
-            //         icon: Icons.phone_android,
-            //         color: AppColors.upi,
-            //         isSelected: _selectedPaymentMode == PaymentMode.upi,
-            //         onTap: () =>
-            //             setState(() => _selectedPaymentMode = PaymentMode.upi),
-            //       ),
-            //       const SizedBox(width: AppSizes.spacingSmall),
-            //       _PaymentModeChip(
-            //         label: 'Credit',
-            //         icon: Icons.credit_card,
-            //         color: AppColors.credit,
-            //         isSelected: _selectedPaymentMode == PaymentMode.credit,
-            //         onTap: () => setState(
-            //           () => _selectedPaymentMode = PaymentMode.credit,
-            //         ),
-            //       ),
-            //     ],
-            //   ),
-            // ),
-            // const SizedBox(height: AppSizes.spacingLarge),
+            // Payment Mode Section
+            _SectionCard(
+              title: 'Payment Mode',
+              child: Wrap(
+                spacing: AppSizes.spacingSmall,
+                runSpacing: AppSizes.spacingSmall,
+                children: [
+                  _PaymentModeChip(
+                    label: 'Cash',
+                    icon: Icons.money,
+                    color: AppColors.cash,
+                    isSelected: _selectedPaymentMode == PaymentMode.cash,
+                    onTap: () {
+                      setState(() {
+                        _selectedPaymentMode = PaymentMode.cash;
+                        _selectedCustomerId = null;
+                      });
+                    },
+                  ),
+                  _PaymentModeChip(
+                    label: 'UPI',
+                    icon: Icons.phone_android,
+                    color: AppColors.upi,
+                    isSelected: _selectedPaymentMode == PaymentMode.upi,
+                    onTap: () {
+                      setState(() {
+                        _selectedPaymentMode = PaymentMode.upi;
+                        _selectedCustomerId = null;
+                      });
+                    },
+                  ),
+                  _PaymentModeChip(
+                    label: 'Credit',
+                    icon: Icons.credit_card,
+                    color: AppColors.credit,
+                    isSelected: _selectedPaymentMode == PaymentMode.credit,
+                    onTap: () {
+                      setState(() {
+                        _selectedPaymentMode = PaymentMode.credit;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacingLarge),
 
-            // // Notes Section
-            // _SectionCard(
-            //   title: 'Notes (Optional)',
-            //   child: TextField(
-            //     controller: _notesController,
-            //     maxLines: 2,
-            //     decoration: const InputDecoration(hintText: 'Add any notes...'),
-            //   ),
-            // ),
-            // const SizedBox(height: AppSizes.spacingXLarge),
+            if (_selectedPaymentMode == PaymentMode.credit) ...[
+              _SectionCard(
+                title: 'Customer',
+                child: StreamBuilder<List<Customer>>(
+                  stream: ref.watch(databaseProvider).watchAllCustomers(),
+                  builder: (context, snapshot) {
+                    final customers = snapshot.data ?? const <Customer>[];
+
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppSizes.paddingMedium,
+                        ),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+
+                    if (customers.isEmpty) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'No customers found. Add a customer from Manage Customers first.',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: AppSizes.spacingSmall),
+                          TextButton.icon(
+                            onPressed: () => context.push('/customers/new'),
+                            icon: const Icon(Icons.person_add_alt_1),
+                            label: const Text('Add Customer'),
+                          ),
+                        ],
+                      );
+                    }
+
+                    final hasSelection = customers.any(
+                      (c) => c.id == _selectedCustomerId,
+                    );
+                    final selectedValue = hasSelection
+                        ? _selectedCustomerId
+                        : null;
+
+                    return DropdownButtonFormField<int>(
+                      initialValue: selectedValue,
+                      decoration: const InputDecoration(
+                        labelText: 'Select customer *',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      items: customers
+                          .map(
+                            (customer) => DropdownMenuItem<int>(
+                              value: customer.id,
+                              child: Text(
+                                customer.phone == null ||
+                                        customer.phone!.isEmpty
+                                    ? customer.name
+                                    : '${customer.name} (${customer.phone})',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedCustomerId = value;
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSizes.spacingLarge),
+            ],
+
+            // Notes Section
+            _SectionCard(
+              title: 'Notes (Optional)',
+              child: TextField(
+                controller: _notesController,
+                maxLines: 2,
+                decoration: const InputDecoration(hintText: 'Add any notes...'),
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacingXLarge),
 
             // Summary Section
             Container(
@@ -260,6 +344,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     double discount,
     double grandTotal,
   ) async {
+    if (_selectedPaymentMode == PaymentMode.credit &&
+        _selectedCustomerId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a customer for credit payment'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -284,6 +378,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           paymentStatus: _selectedPaymentMode == PaymentMode.credit
               ? PaymentStatus.pending
               : PaymentStatus.fulfilled,
+          customerId: Value(
+            _selectedPaymentMode == PaymentMode.credit
+                ? _selectedCustomerId
+                : null,
+          ),
           notes: Value(
             _notesController.text.isEmpty ? null : _notesController.text,
           ),
@@ -333,6 +432,41 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         setState(() => _isSaving = false);
       }
     }
+  }
+}
+
+class _PaymentModeChip extends StatelessWidget {
+  const _PaymentModeChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      avatar: Icon(icon, size: 18, color: isSelected ? Colors.white : color),
+      label: Text(label),
+      selectedColor: color,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : null,
+        fontWeight: FontWeight.w600,
+      ),
+      side: BorderSide(color: color.withValues(alpha: 0.5)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+      ),
+    );
   }
 }
 

@@ -7,6 +7,10 @@ import 'package:path/path.dart' as p;
 
 import 'tables/invoices.dart';
 import 'tables/invoice_items.dart';
+import 'tables/customers.dart';
+import 'tables/ledgers.dart';
+import 'tables/vouchers.dart';
+import 'tables/ledger_entries.dart';
 import 'tables/inventory_items.dart';
 import 'tables/document_series_numbers.dart';
 
@@ -14,13 +18,22 @@ part 'app_database.g.dart';
 
 /// Main database class for the billing app
 @DriftDatabase(
-  tables: [Invoices, InvoiceItems, InventoryItems, DocumentSeriesNumbers],
+  tables: [
+    Invoices,
+    InvoiceItems,
+    InventoryItems,
+    DocumentSeriesNumbers,
+    Customers,
+    Ledgers,
+    Vouchers,
+    LedgerEntries,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -43,6 +56,14 @@ class AppDatabase extends _$AppDatabase {
         if (from < 5) {
           await m.createTable(documentSeriesNumbers);
           await ensureDefaultItemSeries();
+        }
+        if (from < 6) {
+          await m.createTable(ledgers);
+          await m.createTable(customers);
+          await m.createTable(vouchers);
+          await m.createTable(ledgerEntries);
+          await m.addColumn(invoices, invoices.customerId);
+          await m.addColumn(invoices, invoices.paidAmount);
         }
       },
     );
@@ -233,6 +254,76 @@ class AppDatabase extends _$AppDatabase {
   /// Delete inventory item by ID
   Future<int> deleteInventoryItem(int id) {
     return (delete(inventoryItems)..where((t) => t.id.equals(id))).go();
+  }
+
+  // ============ Ledger Operations ============
+
+  /// Insert a new ledger entry and return the generated id.
+  Future<int> insertLedger(LedgersCompanion ledger) {
+    return into(ledgers).insert(ledger);
+  }
+
+  // ============ Customer Operations ============
+
+  /// Watch all customers ordered by newest first.
+  Stream<List<Customer>> watchAllCustomers() {
+    return (select(
+      customers,
+    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).watch();
+  }
+
+  /// Get single customer by ID.
+  Future<Customer?> getCustomerById(int id) {
+    return (select(customers)..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
+  /// Insert a new customer.
+  Future<int> insertCustomer(CustomersCompanion customer) {
+    return into(customers).insert(customer);
+  }
+
+  /// Create a customer and linked customer ledger in a single transaction.
+  Future<int> createCustomerWithLedger({
+    required String customerName,
+    String? phone,
+    String? address,
+  }) {
+    return transaction(() async {
+      final normalizedName = customerName.trim();
+      final normalizedPhone = phone?.trim();
+      final normalizedAddress = address?.trim();
+
+      final ledgerId = await insertLedger(
+        LedgersCompanion.insert(name: normalizedName, type: 'customer'),
+      );
+
+      return insertCustomer(
+        CustomersCompanion.insert(
+          name: normalizedName,
+          phone: Value(
+            normalizedPhone == null || normalizedPhone.isEmpty
+                ? null
+                : normalizedPhone,
+          ),
+          address: Value(
+            normalizedAddress == null || normalizedAddress.isEmpty
+                ? null
+                : normalizedAddress,
+          ),
+          ledgerId: ledgerId,
+        ),
+      );
+    });
+  }
+
+  /// Update an existing customer.
+  Future<bool> updateCustomer(Customer customer) {
+    return update(customers).replace(customer);
+  }
+
+  /// Delete customer by ID.
+  Future<int> deleteCustomer(int id) {
+    return (delete(customers)..where((t) => t.id.equals(id))).go();
   }
 
   // ============ Document Series Operations ============

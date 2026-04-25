@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import 'customers.dart';
+
 /// Payment mode enum for invoices
 enum PaymentMode { cash, upi, credit }
 
@@ -10,6 +12,9 @@ enum PaymentStatus { pending, partial, fulfilled }
 class Invoices extends Table {
   /// Primary key - auto increment
   IntColumn get id => integer().autoIncrement()();
+
+  /// Optional customer reference for credit invoices
+  IntColumn get customerId => integer().nullable().references(Customers, #id)();
 
   /// Unique invoice number (e.g., INV-20260125-001)
   TextColumn get invoiceNo => text().withLength(min: 1, max: 50).unique()();
@@ -22,6 +27,9 @@ class Invoices extends Table {
 
   /// Total amount after discount
   RealColumn get totalAmount => real().withDefault(const Constant(0.0))();
+
+  /// Amount already paid against the invoice
+  RealColumn get paidAmount => real().withDefault(const Constant(0.0))();
 
   /// Payment mode (cash, upi, credit)
   IntColumn get paymentMode => intEnum<PaymentMode>()();

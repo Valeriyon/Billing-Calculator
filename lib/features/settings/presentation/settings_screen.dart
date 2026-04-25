@@ -39,7 +39,7 @@ class SettingsScreen extends ConsumerWidget {
                 trailing: Switch(
                   value: prefs.contrastMode,
                   onChanged: (value) => prefsNotifier.setContrastMode(value),
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
               ),
             ],
@@ -130,7 +130,7 @@ class SettingsScreen extends ConsumerWidget {
                 trailing: Switch(
                   value: prefs.hapticFeedback,
                   onChanged: (value) => prefsNotifier.setHapticFeedback(value),
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
               ),
             ],
