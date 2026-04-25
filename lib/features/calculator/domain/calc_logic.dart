@@ -120,7 +120,7 @@ class CalculatorNotifier extends StateNotifier<CalculatorState> {
       return;
     }
 
-    final newInput = currentInput + '00';
+    final newInput = '${currentInput}00';
     _updateCurrentInput(newInput);
   }
 

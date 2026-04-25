@@ -84,6 +84,14 @@ class AppDrawer extends ConsumerWidget {
               },
             ),
             _DrawerItem(
+              icon: Icons.people_alt_outlined,
+              title: 'Manage Customers',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/customers');
+              },
+            ),
+            _DrawerItem(
               icon: Icons.settings,
               title: 'Settings',
               onTap: () {
