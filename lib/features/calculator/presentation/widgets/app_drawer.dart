@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/providers/app_providers.dart';
 
 /// Sidebar drawer for navigation
 class AppDrawer extends ConsumerWidget {
@@ -11,6 +12,9 @@ class AppDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final creditPaymentEnabled = ref
+        .watch(userPreferencesProvider)
+        .creditPaymentEnabled;
 
     return Drawer(
       child: SafeArea(
@@ -83,14 +87,15 @@ class AppDrawer extends ConsumerWidget {
                 context.push('/inventory');
               },
             ),
-            _DrawerItem(
-              icon: Icons.people_alt_outlined,
-              title: 'Manage Customers',
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/customers');
-              },
-            ),
+            if (creditPaymentEnabled)
+              _DrawerItem(
+                icon: Icons.people_alt_outlined,
+                title: 'Manage Customers',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/customers');
+                },
+              ),
             _DrawerItem(
               icon: Icons.settings,
               title: 'Settings',

@@ -42,6 +42,9 @@ class UserPreferences {
     this.textScale = 1.0,
     this.contrastMode = false,
     this.hapticFeedback = true,
+    this.creditPaymentEnabled = true,
+    this.upiPaymentEnabled = true,
+    this.upiId = '',
   });
 
   final AppThemeMode themeMode;
@@ -49,6 +52,9 @@ class UserPreferences {
   final double textScale;
   final bool contrastMode;
   final bool hapticFeedback;
+  final bool creditPaymentEnabled;
+  final bool upiPaymentEnabled;
+  final String upiId;
 
   /// Create preferences from SharedPreferences
   factory UserPreferences.fromPrefs(SharedPreferences prefs) {
@@ -60,6 +66,9 @@ class UserPreferences {
       textScale: prefs.getDouble('textScale') ?? 1.0,
       contrastMode: prefs.getBool('contrastMode') ?? false,
       hapticFeedback: prefs.getBool('hapticFeedback') ?? true,
+      creditPaymentEnabled: prefs.getBool('creditPaymentEnabled') ?? true,
+      upiPaymentEnabled: prefs.getBool('upiPaymentEnabled') ?? true,
+      upiId: prefs.getString('upiId') ?? '',
     );
   }
 
@@ -70,6 +79,9 @@ class UserPreferences {
     await prefs.setDouble('textScale', textScale);
     await prefs.setBool('contrastMode', contrastMode);
     await prefs.setBool('hapticFeedback', hapticFeedback);
+    await prefs.setBool('creditPaymentEnabled', creditPaymentEnabled);
+    await prefs.setBool('upiPaymentEnabled', upiPaymentEnabled);
+    await prefs.setString('upiId', upiId);
   }
 
   /// Copy with modified values
@@ -79,6 +91,9 @@ class UserPreferences {
     double? textScale,
     bool? contrastMode,
     bool? hapticFeedback,
+    bool? creditPaymentEnabled,
+    bool? upiPaymentEnabled,
+    String? upiId,
   }) {
     return UserPreferences(
       themeMode: themeMode ?? this.themeMode,
@@ -86,6 +101,9 @@ class UserPreferences {
       textScale: textScale ?? this.textScale,
       contrastMode: contrastMode ?? this.contrastMode,
       hapticFeedback: hapticFeedback ?? this.hapticFeedback,
+      creditPaymentEnabled: creditPaymentEnabled ?? this.creditPaymentEnabled,
+      upiPaymentEnabled: upiPaymentEnabled ?? this.upiPaymentEnabled,
+      upiId: upiId ?? this.upiId,
     );
   }
 
@@ -100,7 +118,10 @@ class UserPreferences {
         other.language == language &&
         other.textScale == textScale &&
         other.contrastMode == contrastMode &&
-        other.hapticFeedback == hapticFeedback;
+        other.hapticFeedback == hapticFeedback &&
+        other.creditPaymentEnabled == creditPaymentEnabled &&
+        other.upiPaymentEnabled == upiPaymentEnabled &&
+        other.upiId == upiId;
   }
 
   @override
@@ -111,6 +132,9 @@ class UserPreferences {
       textScale,
       contrastMode,
       hapticFeedback,
+      creditPaymentEnabled,
+      upiPaymentEnabled,
+      upiId,
     );
   }
 }
