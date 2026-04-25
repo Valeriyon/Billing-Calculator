@@ -12,7 +12,9 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/common_app_bar.dart';
 import '../../calculator/domain/calc_logic.dart';
 import '../../calculator/domain/bill_item.dart';
+import '../../settings/domain/preferences_model.dart';
 import 'package:drift/drift.dart' hide Column;
+import 'package:qr_flutter/qr_flutter.dart';
 
 /// Checkout screen for reviewing and saving invoice
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -38,7 +40,32 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final calcState = ref.watch(calculatorProvider);
+    final prefs = ref.watch(userPreferencesProvider);
     final theme = Theme.of(context);
+    final creditPaymentEnabled = prefs.creditPaymentEnabled;
+    final upiPaymentEnabled = prefs.upiPaymentEnabled;
+
+    if (!creditPaymentEnabled && _selectedPaymentMode == PaymentMode.credit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedPaymentMode = PaymentMode.cash;
+            _selectedCustomerId = null;
+          });
+        }
+      });
+    }
+
+    if (!upiPaymentEnabled && _selectedPaymentMode == PaymentMode.upi) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedPaymentMode = PaymentMode.cash;
+            _selectedCustomerId = null;
+          });
+        }
+      });
+    }
 
     if (calcState.billItems.isEmpty) {
       return Scaffold(
@@ -144,35 +171,38 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       });
                     },
                   ),
-                  _PaymentModeChip(
-                    label: 'UPI',
-                    icon: Icons.phone_android,
-                    color: AppColors.upi,
-                    isSelected: _selectedPaymentMode == PaymentMode.upi,
-                    onTap: () {
-                      setState(() {
-                        _selectedPaymentMode = PaymentMode.upi;
-                        _selectedCustomerId = null;
-                      });
-                    },
-                  ),
-                  _PaymentModeChip(
-                    label: 'Credit',
-                    icon: Icons.credit_card,
-                    color: AppColors.credit,
-                    isSelected: _selectedPaymentMode == PaymentMode.credit,
-                    onTap: () {
-                      setState(() {
-                        _selectedPaymentMode = PaymentMode.credit;
-                      });
-                    },
-                  ),
+                  if (upiPaymentEnabled)
+                    _PaymentModeChip(
+                      label: 'UPI',
+                      icon: Icons.phone_android,
+                      color: AppColors.upi,
+                      isSelected: _selectedPaymentMode == PaymentMode.upi,
+                      onTap: () {
+                        setState(() {
+                          _selectedPaymentMode = PaymentMode.upi;
+                          _selectedCustomerId = null;
+                        });
+                      },
+                    ),
+                  if (creditPaymentEnabled)
+                    _PaymentModeChip(
+                      label: 'Credit',
+                      icon: Icons.credit_card,
+                      color: AppColors.credit,
+                      isSelected: _selectedPaymentMode == PaymentMode.credit,
+                      onTap: () {
+                        setState(() {
+                          _selectedPaymentMode = PaymentMode.credit;
+                        });
+                      },
+                    ),
                 ],
               ),
             ),
             const SizedBox(height: AppSizes.spacingLarge),
 
-            if (_selectedPaymentMode == PaymentMode.credit) ...[
+            if (creditPaymentEnabled &&
+                _selectedPaymentMode == PaymentMode.credit) ...[
               _SectionCard(
                 title: 'Customer',
                 child: StreamBuilder<List<Customer>>(
@@ -307,11 +337,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     icon: Icons.check_circle,
                     isLoading: _isSaving,
                     height: AppSizes.buttonHeightLarge,
-                    onPressed: () => _saveInvoice(
+                    onPressed: () => _handleConfirmAndSave(
                       calcState.billItems,
                       subtotal,
                       discountValue,
                       grandTotal,
+                      prefs,
                     ),
                   ),
                 ),
@@ -432,6 +463,147 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  Future<void> _handleConfirmAndSave(
+    List<BillItem> items,
+    double subtotal,
+    double discount,
+    double grandTotal,
+    UserPreferences prefs,
+  ) async {
+    if (_selectedPaymentMode != PaymentMode.upi) {
+      await _saveInvoice(items, subtotal, discount, grandTotal);
+      return;
+    }
+
+    if (!prefs.upiPaymentEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('UPI payment is disabled in settings')),
+      );
+      return;
+    }
+
+    final upiId = prefs.upiId.trim();
+    if (!_isValidUpiId(upiId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Set a valid UPI ID in Settings before using UPI'),
+        ),
+      );
+      return;
+    }
+
+    final paymentDone = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => _UpiQrPaymentScreen(amount: grandTotal, upiId: upiId),
+      ),
+    );
+
+    if (paymentDone != true || !mounted) {
+      return;
+    }
+
+    await _saveInvoice(items, subtotal, discount, grandTotal);
+  }
+
+  bool _isValidUpiId(String value) {
+    return value.contains('@') && value.length >= 5;
+  }
+}
+
+class _UpiQrPaymentScreen extends StatelessWidget {
+  const _UpiQrPaymentScreen({required this.amount, required this.upiId});
+
+  final double amount;
+  final String upiId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final upiUri = Uri(
+      scheme: 'upi',
+      host: 'pay',
+      queryParameters: {
+        'pa': upiId,
+        'pn': 'Store Billing',
+        'am': amount.toStringAsFixed(2),
+        'cu': 'INR',
+        'tn': 'Invoice Payment',
+      },
+    ).toString();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('UPI Payment')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSizes.paddingLarge),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Ask customer to scan and pay',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSizes.spacingSmall),
+              Text(
+                'Amount: ${CurrencyFormatter.format(amount)}',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: AppSizes.spacingLarge),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(AppSizes.paddingMedium),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+                    border: Border.all(color: theme.dividerColor),
+                  ),
+                  child: QrImageView(
+                    data: upiUri,
+                    version: QrVersions.auto,
+                    size: 240,
+                    gapless: false,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSizes.spacingMedium),
+              Text(
+                'UPI ID: $upiId',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      label: 'Cancel',
+                      isOutlined: true,
+                      onPressed: () => Navigator.of(context).pop(false),
+                    ),
+                  ),
+                  const SizedBox(width: AppSizes.spacingMedium),
+                  Expanded(
+                    flex: 2,
+                    child: AppButton(
+                      label: 'Payment Received',
+                      icon: Icons.check_circle,
+                      onPressed: () => Navigator.of(context).pop(true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

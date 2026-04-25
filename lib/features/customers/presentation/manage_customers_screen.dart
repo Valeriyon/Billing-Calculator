@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../../core/widgets/common_app_bar.dart';
 import '../domain/customer_model.dart';
 import 'providers/customer_providers.dart';
@@ -33,9 +34,54 @@ class _ManageCustomersScreenState extends ConsumerState<ManageCustomersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final prefs = ref.watch(userPreferencesProvider);
     final state = ref.watch(customerManagerProvider);
     final notifier = ref.read(customerManagerProvider.notifier);
     final theme = Theme.of(context);
+
+    if (!prefs.creditPaymentEnabled) {
+      return Scaffold(
+        appBar: CommonAppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back to calculator',
+            onPressed: () => context.go('/'),
+          ),
+          title: const Text('Customers'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSizes.paddingXLarge),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.credit_card_off,
+                  size: 56,
+                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                ),
+                const SizedBox(height: AppSizes.spacingMedium),
+                Text(
+                  'Credit payment is turned off',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSizes.spacingSmall),
+                Text(
+                  'Enable credit payment in Settings to manage customers.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSizes.spacingLarge),
+                FilledButton(
+                  onPressed: () => context.push('/settings'),
+                  child: const Text('Open Settings'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: CommonAppBar(
@@ -104,26 +150,26 @@ class _ManageCustomersScreenState extends ConsumerState<ManageCustomersScreen> {
               child: state.isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : state.filteredCustomers.isEmpty
-                      ? _EmptyCustomers(hasFilter: state.searchQuery.isNotEmpty)
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSizes.paddingLarge,
-                            0,
-                            AppSizes.paddingLarge,
-                            AppSizes.paddingLarge,
-                          ),
-                          itemCount: state.filteredCustomers.length,
-                          itemBuilder: (context, index) {
-                            final customer = state.filteredCustomers[index];
-                            return _CustomerTile(
-                              customer: customer,
-                              onEdit: () =>
-                                  context.push('/customers/edit/${customer.id}'),
-                              onDelete: () =>
-                                  _confirmDelete(customer.id, customer.name),
-                            );
-                          },
-                        ),
+                  ? _EmptyCustomers(hasFilter: state.searchQuery.isNotEmpty)
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSizes.paddingLarge,
+                        0,
+                        AppSizes.paddingLarge,
+                        AppSizes.paddingLarge,
+                      ),
+                      itemCount: state.filteredCustomers.length,
+                      itemBuilder: (context, index) {
+                        final customer = state.filteredCustomers[index];
+                        return _CustomerTile(
+                          customer: customer,
+                          onEdit: () =>
+                              context.push('/customers/edit/${customer.id}'),
+                          onDelete: () =>
+                              _confirmDelete(customer.id, customer.name),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -196,7 +242,9 @@ class _CustomerTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: AppSizes.spacingMedium),
       child: ListTile(
         title: Text(customer.name),
-        subtitle: subtitleParts.isEmpty ? null : Text(subtitleParts.join(' • ')),
+        subtitle: subtitleParts.isEmpty
+            ? null
+            : Text(subtitleParts.join(' • ')),
         leading: CircleAvatar(
           child: Text(
             customer.name.isEmpty ? '?' : customer.name.substring(0, 1),
