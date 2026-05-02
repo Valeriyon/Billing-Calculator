@@ -5,6 +5,8 @@ class BillItem {
     required this.name,
     required this.quantity,
     required this.rate,
+    this.inventoryItemId,
+    this.barcode,
     this.discountAmount = 0.0,
   });
 
@@ -12,6 +14,8 @@ class BillItem {
   final String name;
   final double quantity;
   final double rate;
+  final int? inventoryItemId;
+  final String? barcode;
   final double discountAmount;
 
   /// Calculate total for this item (qty * rate - discount)
@@ -23,6 +27,8 @@ class BillItem {
     String? name,
     double? quantity,
     double? rate,
+    int? inventoryItemId,
+    String? barcode,
     double? discountAmount,
   }) {
     return BillItem(
@@ -30,6 +36,8 @@ class BillItem {
       name: name ?? this.name,
       quantity: quantity ?? this.quantity,
       rate: rate ?? this.rate,
+      inventoryItemId: inventoryItemId ?? this.inventoryItemId,
+      barcode: barcode ?? this.barcode,
       discountAmount: discountAmount ?? this.discountAmount,
     );
   }
@@ -41,6 +49,8 @@ class BillItem {
       name: json['name'] as String,
       quantity: (json['quantity'] as num).toDouble(),
       rate: (json['rate'] as num).toDouble(),
+      inventoryItemId: (json['inventoryItemId'] as num?)?.toInt(),
+      barcode: json['barcode'] as String?,
       discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -52,6 +62,8 @@ class BillItem {
       'name': name,
       'quantity': quantity,
       'rate': rate,
+      'inventoryItemId': inventoryItemId,
+      'barcode': barcode,
       'discountAmount': discountAmount,
     };
   }

@@ -13,105 +13,92 @@ class CalcDisplay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final calcState = ref.watch(calculatorProvider);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.paddingLarge),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
-        border: Border.all(
-          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Qty × Rate row
+        Row(
+          children: [
+            // Rate input
+            Expanded(
+              child: _InputBox(
+                label: 'Rate',
+                value: calcState.rateInput.isEmpty
+                    ? '0'
+                    : calcState.rateInput,
+                isActive: calcState.currentMode == CalcInputMode.rate,
+                prefix: '₹',
+                onTap: () {
+                  ref.read(calculatorProvider.notifier).setMode(CalcInputMode.rate);
+                },
+              ),
+            ),
+
+            // Multiplication symbol
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacingMedium,
+              ),
+              child: Text(
+                '×',
+                style: theme.textTheme.headlineLarge?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+            // Quantity input
+            Expanded(
+              child: _InputBox(
+                label: 'Qty',
+                value: calcState.quantityInput.isEmpty
+                    ? '0'
+                    : calcState.quantityInput,
+                isActive: calcState.currentMode == CalcInputMode.quantity,
+                onTap: () {
+                  ref
+                      .read(calculatorProvider.notifier)
+                      .setMode(CalcInputMode.quantity);
+                },
+              ),
+            ),
+          ],
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Qty × Rate row
-          Row(
+
+        const SizedBox(height: AppSizes.spacingSmall),
+
+        // Total row
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.paddingMedium,
+            vertical: AppSizes.paddingSmall,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Rate input
-              Expanded(
-                child: _InputBox(
-                  label: 'Rate',
-                  value: calcState.rateInput.isEmpty
-                      ? '0'
-                      : calcState.rateInput,
-                  isActive: calcState.currentMode == CalcInputMode.rate,
-                  prefix: '₹',
-                  onTap: () {
-                    ref
-                        .read(calculatorProvider.notifier)
-                        .setMode(CalcInputMode.rate);
-                  },
+              Text(
+                'Item Total',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.textTheme.bodySmall?.color,
                 ),
               ),
-
-              // Multiplication symbol
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.spacingMedium,
-                ),
-                child: Text(
-                  '×',
-                  style: theme.textTheme.headlineLarge?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-
-              // Quantity input
-              Expanded(
-                child: _InputBox(
-                  label: 'Qty',
-                  value: calcState.quantityInput.isEmpty
-                      ? '0'
-                      : calcState.quantityInput,
-                  isActive: calcState.currentMode == CalcInputMode.quantity,
-                  onTap: () {
-                    ref
-                        .read(calculatorProvider.notifier)
-                        .setMode(CalcInputMode.quantity);
-                  },
+              Text(
+                CurrencyFormatter.format(calcState.currentTotal),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-
-          const SizedBox(height: AppSizes.spacingMedium),
-
-          // Total row
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSizes.paddingMedium,
-              vertical: AppSizes.paddingSmall,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Item Total',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.textTheme.bodySmall?.color,
-                  ),
-                ),
-                Text(
-                  CurrencyFormatter.format(calcState.currentTotal),
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -148,9 +135,20 @@ class _InputBox extends StatelessWidget {
               : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
           borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
           border: Border.all(
-            color: isActive ? AppColors.primary : Colors.transparent,
+            color: isActive
+                ? AppColors.primary
+                : (isDark ? AppColors.dividerDark : AppColors.dividerLight),
             width: 2,
           ),
+          boxShadow: isActive
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

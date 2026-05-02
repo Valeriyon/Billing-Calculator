@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -68,33 +72,44 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
       ),
       drawer: const AppDrawer(),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _ItemsSection(
-              items: calcState.billItems,
-              onViewAll: () => _showAllItemsModal(context),
-              onDeleteItem: (index) {
-                ref.read(calculatorProvider.notifier).removeItem(index);
-              },
-            ),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                children: [
-                  _CalculatorPage(),
-                  _InventoryBrowserPage(
-                    state: inventoryState,
-                    onSearchChanged: inventoryNotifier.setSearchQuery,
-                    searchController: _searchController,
-                    onOpenFilters: () => _showInventoryFilters(context),
-                    onOpenScanner: () => context.push('/scanner'),
-                    onItemTap: (item) => _showAddItemModal(context, item),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final availableHeight = constraints.maxHeight;
+            // Don't show items section if height <= 600dp
+            final showItems = availableHeight > 600;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Responsive items section - only show on larger screens
+                if (showItems)
+                  _ItemsSection(
+                    items: calcState.billItems,
+                    onViewAll: () => _showAllItemsModal(context),
+                    onDeleteItem: (index) {
+                      ref.read(calculatorProvider.notifier).removeItem(index);
+                    },
                   ),
-                ],
-              ),
-            ),
-          ],
+                // Expandable middle section with calculator/inventory
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    children: [
+                      _CalculatorPage(),
+                      _InventoryBrowserPage(
+                        state: inventoryState,
+                        onSearchChanged: inventoryNotifier.setSearchQuery,
+                        searchController: _searchController,
+                        onOpenFilters: () => _showInventoryFilters(context),
+                        onOpenScanner: () => context.push('/scanner'),
+                        onItemTap: (item) => _showAddItemModal(context, item),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -130,6 +145,8 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
 
             final newItem = BillItem(
               id: DateTime.now().microsecondsSinceEpoch.toString(),
+              inventoryItemId: item.id,
+              barcode: item.barcode,
               name: item.name,
               quantity: quantity,
               rate: item.price,
@@ -156,20 +173,58 @@ class _CalculatorPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final theme = Theme.of(context);
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Spacer(),
+        // Expandable spacer
+        const Expanded(child: SizedBox.shrink()),
         Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.paddingMedium,
+            AppSizes.spacingSmall,
+            AppSizes.paddingMedium,
+            AppSizes.paddingSmall,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(AppSizes.paddingMedium),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.swipe_right_alt, size: 18),
+                const SizedBox(width: AppSizes.spacingSmall),
+                Expanded(
+                  child: Text(
+                    'Swipe left to browse inventory',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Calculator display
+        const Padding(
           padding: EdgeInsets.symmetric(horizontal: AppSizes.paddingMedium),
           child: CalcDisplay(),
         ),
-        SizedBox(height: AppSizes.spacingSmall),
-        Padding(
+        const SizedBox(height: AppSizes.spacingSmall),
+
+        // Calculator keypad
+        const Padding(
           padding: EdgeInsets.only(
             left: AppSizes.paddingMedium,
             right: AppSizes.paddingMedium,
-            bottom: AppSizes.paddingSmall,
+            bottom: AppSizes.spacingSmall,
           ),
           child: CalcKeypad(),
         ),
@@ -373,6 +428,22 @@ class _AddToCartModalState extends State<_AddToCartModal> {
     return double.tryParse(_quantityController.text.trim()) ?? 0;
   }
 
+  void _incrementQuantity() {
+    final next = _quantity + 1;
+    _quantityController.text = next == next.roundToDouble()
+        ? next.toInt().toString()
+        : next.toStringAsFixed(2);
+    setState(() {});
+  }
+
+  void _decrementQuantity() {
+    final next = (_quantity - 1).clamp(0.0, double.infinity);
+    _quantityController.text = next == next.roundToDouble()
+        ? next.toInt().toString()
+        : next.toStringAsFixed(2);
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -420,6 +491,8 @@ class _AddToCartModalState extends State<_AddToCartModal> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _ItemImagePreview(path: widget.item.imagePath),
+                  const SizedBox(height: AppSizes.spacingMedium),
                   Text(
                     widget.item.name,
                     style: theme.textTheme.titleMedium?.copyWith(
@@ -435,17 +508,33 @@ class _AddToCartModalState extends State<_AddToCartModal> {
               ),
             ),
             const SizedBox(height: AppSizes.spacingMedium),
-            TextField(
-              controller: _quantityController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Quantity',
-                hintText: 'Enter quantity',
-                prefixIcon: Icon(Icons.numbers),
-              ),
+            Row(
+              children: [
+                IconButton.filledTonal(
+                  onPressed: _decrementQuantity,
+                  icon: const Icon(Icons.remove),
+                ),
+                const SizedBox(width: AppSizes.spacingSmall),
+                Expanded(
+                  child: TextField(
+                    controller: _quantityController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textAlign: TextAlign.center,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity',
+                      hintText: 'Enter quantity',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSizes.spacingSmall),
+                IconButton.filledTonal(
+                  onPressed: _incrementQuantity,
+                  icon: const Icon(Icons.add),
+                ),
+              ],
             ),
             const SizedBox(height: AppSizes.spacingMedium),
             Container(
@@ -490,6 +579,34 @@ class _AddToCartModalState extends State<_AddToCartModal> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ItemImagePreview extends StatelessWidget {
+  const _ItemImagePreview({required this.path});
+
+  final String? path;
+
+  @override
+  Widget build(BuildContext context) {
+    final imagePath = path?.trim();
+    final file = imagePath != null && imagePath.isNotEmpty
+        ? File(imagePath)
+        : null;
+    final hasImage = file != null && file.existsSync();
+    final theme = Theme.of(context);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+      child: Container(
+        width: double.infinity,
+        height: 160,
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+        child: hasImage
+            ? Image.file(file, fit: BoxFit.cover)
+            : const Center(child: Icon(Icons.inventory_2_outlined, size: 48)),
       ),
     );
   }
@@ -618,23 +735,17 @@ class _ItemsSection extends StatelessWidget {
     // Empty state
     if (items.isEmpty) {
       return Container(
-        margin: const EdgeInsets.all(AppSizes.paddingMedium),
+        // margin: const EdgeInsets.all(AppSizes.paddingMedium),
         padding: const EdgeInsets.all(AppSizes.paddingXLarge),
         decoration: BoxDecoration(
           color: theme.cardColor,
-          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-          border: Border.all(color: theme.dividerColor),
+          // borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          // border: Border.all(color: theme.dividerColor),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(
-              Icons.receipt_long_outlined,
-              size: 48,
-              color: theme.colorScheme.primary.withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: AppSizes.spacingMedium),
             Text(
               'No items in bill',
               style: theme.textTheme.bodyLarge?.copyWith(
@@ -651,24 +762,22 @@ class _ItemsSection extends StatelessWidget {
       );
     }
 
-    // Get last 2 items to display
-    final displayItems = items.length <= 2
-        ? items.asMap().entries.toList()
-        : items.asMap().entries.toList().sublist(items.length - 2);
+    // Display only the last 1 item
+    final lastItem = items.last;
+    final lastItemIndex = items.length - 1;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Item cards (original design)
-        for (final entry in displayItems)
-          _ItemCard(
-            item: entry.value,
-            index: entry.key,
-            onDelete: () => onDeleteItem(entry.key),
-          ),
+        // Show last item only
+        _ItemCard(
+          item: lastItem,
+          index: lastItemIndex,
+          onDelete: () => onDeleteItem(lastItemIndex),
+        ),
 
-        // View All button
-        if (items.length > 2)
+        // View All button if more than 1 item
+        if (items.length > 1)
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSizes.paddingMedium,
@@ -676,7 +785,7 @@ class _ItemsSection extends StatelessWidget {
             child: TextButton.icon(
               onPressed: onViewAll,
               icon: const Icon(Icons.list, size: 18),
-              label: Text('View All ${items.length} Items'),
+              label: Text('View all (${items.length})'),
             ),
           ),
       ],
@@ -699,15 +808,7 @@ class _SwipeInventoryTile extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.all(AppSizes.paddingMedium),
-        leading: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-          ),
-          child: const Icon(Icons.inventory_2_outlined),
-        ),
+        leading: _InventoryThumbnail(path: item.imagePath),
         title: Text(
           item.name,
           maxLines: 1,
@@ -732,6 +833,34 @@ class _SwipeInventoryTile extends StatelessWidget {
             color: AppColors.primary,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InventoryThumbnail extends StatelessWidget {
+  const _InventoryThumbnail({required this.path});
+
+  final String? path;
+
+  @override
+  Widget build(BuildContext context) {
+    final imagePath = path?.trim();
+    final file = imagePath != null && imagePath.isNotEmpty
+        ? File(imagePath)
+        : null;
+    final hasImage = file != null && file.existsSync();
+    final theme = Theme.of(context);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+      child: Container(
+        width: 52,
+        height: 52,
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+        child: hasImage
+            ? Image.file(file, fit: BoxFit.cover)
+            : const Icon(Icons.inventory_2_outlined),
       ),
     );
   }

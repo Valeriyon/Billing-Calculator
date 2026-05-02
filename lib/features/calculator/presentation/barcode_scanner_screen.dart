@@ -1,3 +1,5 @@
+import 'package:billing_app_pos/core/widgets/common_app_bar.dart';
+import 'package:billing_app_pos/features/inventory/domain/inventory_item_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/utils/currency_format.dart';
 import '../domain/calc_logic.dart';
 import '../domain/bill_item.dart';
+import '../../inventory/presentation/providers/inventory_providers.dart';
 
 /// Barcode scanner screen with bill items at bottom
 class BarcodeScannerScreen extends ConsumerStatefulWidget {
@@ -31,7 +34,16 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
   @override
   void initState() {
     super.initState();
-    _scannerController = MobileScannerController();
+    _scannerController = MobileScannerController(
+      formats: const [
+        BarcodeFormat.ean13,
+        BarcodeFormat.ean8,
+        BarcodeFormat.code128,
+        BarcodeFormat.code39,
+        BarcodeFormat.upcA,
+        BarcodeFormat.upcE,
+      ],
+    );
   }
 
   @override
@@ -43,37 +55,96 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
   void _onDetect(BarcodeCapture capture) {
     final now = DateTime.now();
     final lastTime = _lastScanTime;
+    final lastCode = _lastScannedCode;
 
-    // Debounce: ignore scans within 500ms of the last scan
-    if (lastTime != null && now.difference(lastTime).inMilliseconds < 500) {
+    if (lastTime != null &&
+        lastCode != null &&
+        now.difference(lastTime).inMilliseconds < 1200) {
       return;
     }
 
-    final barcodes = capture.barcodes;
-    if (barcodes.isEmpty) {
-      return;
-    }
+    final barcode = capture.barcodes.firstWhere(
+      (candidate) =>
+          candidate.format != BarcodeFormat.qrCode &&
+          candidate.rawValue != null &&
+          candidate.rawValue!.trim().isNotEmpty,
+      orElse: () => const Barcode(rawValue: null),
+    );
 
-    final barcode = barcodes.first;
-    final code = barcode.rawValue;
-
-    if (code == null) {
+    final code = barcode.rawValue?.trim();
+    if (code == null || code.isEmpty || code == lastCode) {
       return;
     }
 
     _lastScannedCode = code;
     _lastScanTime = now;
 
-    // Log the scan
-    debugPrint('Barcode scanned: $code');
+    final inventoryState = ref.read(inventoryManagerProvider);
+    final matchingItem = _findInventoryItemByBarcode(
+      inventoryState.items,
+      code,
+    );
 
-    // Show feedback
+    if (matchingItem == null) {
+      debugPrint('No inventory item found for barcode: $code');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No inventory item found for $code'),
+          duration: const Duration(milliseconds: 1200),
+        ),
+      );
+      return;
+    }
+
+    final calcState = ref.read(calculatorProvider);
+    final calcNotifier = ref.read(calculatorProvider.notifier);
+
+    final alreadyAdded = calcState.billItems.any(
+      (item) =>
+          item.inventoryItemId == matchingItem.id ||
+          (item.barcode?.trim() == code),
+    );
+
+    if (alreadyAdded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${matchingItem.name} already added'),
+          duration: const Duration(milliseconds: 1200),
+        ),
+      );
+      return;
+    }
+
+    calcNotifier.setItems([
+      ...calcState.billItems,
+      BillItem(
+        id: matchingItem.id.toString(),
+        inventoryItemId: matchingItem.id,
+        barcode: code,
+        name: matchingItem.name,
+        quantity: 1,
+        rate: matchingItem.price,
+      ),
+    ]);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Scanned: $code'),
-        duration: const Duration(milliseconds: 800),
+        content: Text('${matchingItem.name} added to bill'),
+        duration: const Duration(milliseconds: 1200),
       ),
     );
+  }
+
+  InventoryItemModel? _findInventoryItemByBarcode(
+    List<InventoryItemModel> items,
+    String barcode,
+  ) {
+    for (final item in items) {
+      if (item.barcode?.trim() == barcode) {
+        return item;
+      }
+    }
+    return null;
   }
 
   @override
@@ -82,14 +153,9 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: true,
-        title: const Text('Barcode Scanner'),
-        centerTitle: true,
-      ),
+      appBar: const CommonAppBar(title: Text('Barcode Scanner')),
       body: Column(
         children: [
-          // Top: Camera scanner (50% of screen)
           Expanded(
             flex: 1,
             child: _supportsCamera
@@ -236,8 +302,6 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
                     ),
                   ),
           ),
-
-          // Bottom: Bill items (50% of screen)
           Expanded(
             flex: 1,
             child: Container(
@@ -283,6 +347,9 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
                               return _ScannerBillItemTile(
                                 item: item,
                                 index: index,
+                                onDelete: () => ref
+                                    .read(calculatorProvider.notifier)
+                                    .removeItem(index),
                               );
                             },
                           ),
@@ -303,10 +370,15 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
 }
 
 class _ScannerBillItemTile extends StatelessWidget {
-  const _ScannerBillItemTile({required this.item, required this.index});
+  const _ScannerBillItemTile({
+    required this.item,
+    required this.index,
+    required this.onDelete,
+  });
 
   final BillItem item;
   final int index;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -345,12 +417,24 @@ class _ScannerBillItemTile extends StatelessWidget {
           '${CurrencyFormatter.formatQuantity(item.quantity)} × ${CurrencyFormatter.formatWithoutSymbol(item.rate)}',
           style: theme.textTheme.labelSmall,
         ),
-        trailing: Text(
-          CurrencyFormatter.format(item.total),
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-          ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              CurrencyFormatter.format(item.total),
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Remove item',
+              color: AppColors.error,
+            ),
+          ],
         ),
       ),
     );
