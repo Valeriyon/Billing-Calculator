@@ -145,11 +145,11 @@ class CalcKeypad extends ConsumerWidget {
     return KeypadButton(
       label: data.label,
       icon: data.icon,
-      child: data.child,
       onPressed: data.onPressed,
       isAccent: data.isAccent,
       fontSize: data.fontSize,
       size: data.customHeight ?? baseHeight,
+      child: data.child,
     );
   }
 }

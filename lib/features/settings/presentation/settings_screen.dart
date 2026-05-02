@@ -39,7 +39,7 @@ class SettingsScreen extends ConsumerWidget {
                 trailing: Switch(
                   value: prefs.contrastMode,
                   onChanged: (value) => prefsNotifier.setContrastMode(value),
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
               ),
             ],
@@ -102,22 +102,70 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSizes.spacingLarge),
 
-          // Language Section
+          // Payment Section
           _SettingsSection(
-            title: 'Language',
+            title: 'Payments',
             children: [
-              for (final lang in AppLanguage.values)
-                _SettingsTile(
-                  icon: Icons.language,
-                  title: lang.displayName,
-                  trailing: prefs.language == lang
-                      ? Icon(Icons.check_circle, color: AppColors.primary)
-                      : null,
-                  onTap: () => prefsNotifier.setLanguage(lang),
+              _SettingsTile(
+                icon: Icons.phone_android,
+                title: 'Enable UPI Payment',
+                subtitle: 'Show UPI in checkout and generate payment QR',
+                trailing: Switch(
+                  value: prefs.upiPaymentEnabled,
+                  onChanged: (value) => _handleUpiToggle(
+                    context,
+                    enabled: value,
+                    currentUpiId: prefs.upiId,
+                    notifier: prefsNotifier,
+                  ),
+                  activeThumbColor: AppColors.primary,
                 ),
+              ),
+              if (prefs.upiPaymentEnabled)
+                _SettingsTile(
+                  icon: Icons.qr_code_2,
+                  title: 'UPI ID',
+                  subtitle: prefs.upiId.trim().isEmpty
+                      ? 'Tap to enter UPI ID'
+                      : prefs.upiId,
+                  trailing: const Icon(Icons.edit_outlined),
+                  onTap: () => _openUpiIdModalAndSave(
+                    context,
+                    currentUpiId: prefs.upiId,
+                    notifier: prefsNotifier,
+                  ),
+                ),
+              _SettingsTile(
+                icon: Icons.credit_card,
+                title: 'Enable Credit Payment',
+                subtitle: 'Show credit checkout and customer management',
+                trailing: Switch(
+                  value: prefs.creditPaymentEnabled,
+                  onChanged: (value) =>
+                      prefsNotifier.setCreditPaymentEnabled(value),
+                  activeThumbColor: AppColors.primary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSizes.spacingLarge),
+
+          // // Language Section
+          // _SettingsSection(
+          //   title: 'Language',
+          //   children: [
+          //     for (final lang in AppLanguage.values)
+          //       _SettingsTile(
+          //         icon: Icons.language,
+          //         title: lang.displayName,
+          //         trailing: prefs.language == lang
+          //             ? Icon(Icons.check_circle, color: AppColors.primary)
+          //             : null,
+          //         onTap: () => prefsNotifier.setLanguage(lang),
+          //       ),
+          //   ],
+          // ),
+          // const SizedBox(height: AppSizes.spacingLarge),
 
           // Haptic Feedback
           _SettingsSection(
@@ -130,7 +178,7 @@ class SettingsScreen extends ConsumerWidget {
                 trailing: Switch(
                   value: prefs.hapticFeedback,
                   onChanged: (value) => prefsNotifier.setHapticFeedback(value),
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
               ),
             ],
@@ -206,6 +254,134 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _handleUpiToggle(
+    BuildContext context, {
+    required bool enabled,
+    required String currentUpiId,
+    required UserPreferencesNotifier notifier,
+  }) async {
+    if (!enabled) {
+      await notifier.setUpiPaymentEnabled(false);
+      return;
+    }
+
+    await notifier.setUpiPaymentEnabled(true);
+
+    if (!context.mounted) {
+      return;
+    }
+
+    final enteredUpiId = await _showUpiIdDialog(
+      context,
+      currentUpiId: currentUpiId,
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    if (enteredUpiId == null) {
+      if (currentUpiId.trim().isEmpty) {
+        await notifier.setUpiPaymentEnabled(false);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('UPI ID is required to enable UPI payment'),
+            ),
+          );
+        }
+      }
+      return;
+    }
+
+    await notifier.setUpiId(enteredUpiId);
+  }
+
+  Future<void> _openUpiIdModalAndSave(
+    BuildContext context, {
+    required String currentUpiId,
+    required UserPreferencesNotifier notifier,
+  }) async {
+    final enteredUpiId = await _showUpiIdDialog(
+      context,
+      currentUpiId: currentUpiId,
+    );
+
+    if (enteredUpiId == null) {
+      return;
+    }
+
+    await notifier.setUpiId(enteredUpiId);
+  }
+
+  Future<String?> _showUpiIdDialog(
+    BuildContext context, {
+    required String currentUpiId,
+  }) {
+    final controller = TextEditingController(text: currentUpiId);
+    String? errorText;
+
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                currentUpiId.trim().isEmpty ? 'Enter UPI ID' : 'Confirm UPI ID',
+              ),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  labelText: 'UPI ID',
+                  hintText: 'shop@upi',
+                  prefixIcon: const Icon(Icons.qr_code_2),
+                  errorText: errorText,
+                ),
+                onSubmitted: (_) {
+                  final value = controller.text.trim();
+                  if (!_isValidUpiId(value)) {
+                    setDialogState(() {
+                      errorText = 'Enter a valid UPI ID (example: shop@upi)';
+                    });
+                    return;
+                  }
+                  Navigator.of(dialogContext).pop(value);
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final value = controller.text.trim();
+                    if (!_isValidUpiId(value)) {
+                      setDialogState(() {
+                        errorText = 'Enter a valid UPI ID (example: shop@upi)';
+                      });
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(value);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  bool _isValidUpiId(String value) {
+    return value.contains('@') && value.length >= 5;
   }
 }
 

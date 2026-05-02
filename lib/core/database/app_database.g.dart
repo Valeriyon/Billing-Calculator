@@ -17,6 +17,12 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _customerIdMeta =
+      const VerificationMeta('customerId');
+  @override
+  late final GeneratedColumn<int> customerId = GeneratedColumn<int>(
+      'customer_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _invoiceNoMeta =
       const VerificationMeta('invoiceNo');
   @override
@@ -48,6 +54,14 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
   @override
   late final GeneratedColumn<double> totalAmount = GeneratedColumn<double>(
       'total_amount', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _paidAmountMeta =
+      const VerificationMeta('paidAmount');
+  @override
+  late final GeneratedColumn<double> paidAmount = GeneratedColumn<double>(
+      'paid_amount', aliasedName, false,
       type: DriftSqlType.double,
       requiredDuringInsert: false,
       defaultValue: const Constant(0.0));
@@ -89,10 +103,12 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        customerId,
         invoiceNo,
         subtotalAmount,
         discountAmount,
         totalAmount,
+        paidAmount,
         paymentMode,
         paymentStatus,
         notes,
@@ -111,6 +127,12 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('customer_id')) {
+      context.handle(
+          _customerIdMeta,
+          customerId.isAcceptableOrUnknown(
+              data['customer_id']!, _customerIdMeta));
     }
     if (data.containsKey('invoice_no')) {
       context.handle(_invoiceNoMeta,
@@ -135,6 +157,12 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
           _totalAmountMeta,
           totalAmount.isAcceptableOrUnknown(
               data['total_amount']!, _totalAmountMeta));
+    }
+    if (data.containsKey('paid_amount')) {
+      context.handle(
+          _paidAmountMeta,
+          paidAmount.isAcceptableOrUnknown(
+              data['paid_amount']!, _paidAmountMeta));
     }
     context.handle(_paymentModeMeta, const VerificationResult.success());
     context.handle(_paymentStatusMeta, const VerificationResult.success());
@@ -161,6 +189,8 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
     return Invoice(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      customerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}customer_id']),
       invoiceNo: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}invoice_no'])!,
       subtotalAmount: attachedDatabase.typeMapping.read(
@@ -169,6 +199,8 @@ class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
           DriftSqlType.double, data['${effectivePrefix}discount_amount'])!,
       totalAmount: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}total_amount'])!,
+      paidAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}paid_amount'])!,
       paymentMode: $InvoicesTable.$converterpaymentMode.fromSql(attachedDatabase
           .typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}payment_mode'])!),
@@ -199,6 +231,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   /// Primary key - auto increment
   final int id;
 
+  /// Optional customer reference for credit invoices
+  final int? customerId;
+
   /// Unique invoice number (e.g., INV-20260125-001)
   final String invoiceNo;
 
@@ -210,6 +245,9 @@ class Invoice extends DataClass implements Insertable<Invoice> {
 
   /// Total amount after discount
   final double totalAmount;
+
+  /// Amount already paid against the invoice
+  final double paidAmount;
 
   /// Payment mode (cash, upi, credit)
   final PaymentMode paymentMode;
@@ -227,10 +265,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   final DateTime updatedAt;
   const Invoice(
       {required this.id,
+      this.customerId,
       required this.invoiceNo,
       required this.subtotalAmount,
       required this.discountAmount,
       required this.totalAmount,
+      required this.paidAmount,
       required this.paymentMode,
       required this.paymentStatus,
       this.notes,
@@ -240,10 +280,14 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || customerId != null) {
+      map['customer_id'] = Variable<int>(customerId);
+    }
     map['invoice_no'] = Variable<String>(invoiceNo);
     map['subtotal_amount'] = Variable<double>(subtotalAmount);
     map['discount_amount'] = Variable<double>(discountAmount);
     map['total_amount'] = Variable<double>(totalAmount);
+    map['paid_amount'] = Variable<double>(paidAmount);
     {
       map['payment_mode'] = Variable<int>(
           $InvoicesTable.$converterpaymentMode.toSql(paymentMode));
@@ -263,10 +307,14 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   InvoicesCompanion toCompanion(bool nullToAbsent) {
     return InvoicesCompanion(
       id: Value(id),
+      customerId: customerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customerId),
       invoiceNo: Value(invoiceNo),
       subtotalAmount: Value(subtotalAmount),
       discountAmount: Value(discountAmount),
       totalAmount: Value(totalAmount),
+      paidAmount: Value(paidAmount),
       paymentMode: Value(paymentMode),
       paymentStatus: Value(paymentStatus),
       notes:
@@ -281,10 +329,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Invoice(
       id: serializer.fromJson<int>(json['id']),
+      customerId: serializer.fromJson<int?>(json['customerId']),
       invoiceNo: serializer.fromJson<String>(json['invoiceNo']),
       subtotalAmount: serializer.fromJson<double>(json['subtotalAmount']),
       discountAmount: serializer.fromJson<double>(json['discountAmount']),
       totalAmount: serializer.fromJson<double>(json['totalAmount']),
+      paidAmount: serializer.fromJson<double>(json['paidAmount']),
       paymentMode: $InvoicesTable.$converterpaymentMode
           .fromJson(serializer.fromJson<int>(json['paymentMode'])),
       paymentStatus: $InvoicesTable.$converterpaymentStatus
@@ -299,10 +349,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'customerId': serializer.toJson<int?>(customerId),
       'invoiceNo': serializer.toJson<String>(invoiceNo),
       'subtotalAmount': serializer.toJson<double>(subtotalAmount),
       'discountAmount': serializer.toJson<double>(discountAmount),
       'totalAmount': serializer.toJson<double>(totalAmount),
+      'paidAmount': serializer.toJson<double>(paidAmount),
       'paymentMode': serializer.toJson<int>(
           $InvoicesTable.$converterpaymentMode.toJson(paymentMode)),
       'paymentStatus': serializer.toJson<int>(
@@ -315,10 +367,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
 
   Invoice copyWith(
           {int? id,
+          Value<int?> customerId = const Value.absent(),
           String? invoiceNo,
           double? subtotalAmount,
           double? discountAmount,
           double? totalAmount,
+          double? paidAmount,
           PaymentMode? paymentMode,
           PaymentStatus? paymentStatus,
           Value<String?> notes = const Value.absent(),
@@ -326,10 +380,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           DateTime? updatedAt}) =>
       Invoice(
         id: id ?? this.id,
+        customerId: customerId.present ? customerId.value : this.customerId,
         invoiceNo: invoiceNo ?? this.invoiceNo,
         subtotalAmount: subtotalAmount ?? this.subtotalAmount,
         discountAmount: discountAmount ?? this.discountAmount,
         totalAmount: totalAmount ?? this.totalAmount,
+        paidAmount: paidAmount ?? this.paidAmount,
         paymentMode: paymentMode ?? this.paymentMode,
         paymentStatus: paymentStatus ?? this.paymentStatus,
         notes: notes.present ? notes.value : this.notes,
@@ -339,6 +395,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   Invoice copyWithCompanion(InvoicesCompanion data) {
     return Invoice(
       id: data.id.present ? data.id.value : this.id,
+      customerId:
+          data.customerId.present ? data.customerId.value : this.customerId,
       invoiceNo: data.invoiceNo.present ? data.invoiceNo.value : this.invoiceNo,
       subtotalAmount: data.subtotalAmount.present
           ? data.subtotalAmount.value
@@ -348,6 +406,8 @@ class Invoice extends DataClass implements Insertable<Invoice> {
           : this.discountAmount,
       totalAmount:
           data.totalAmount.present ? data.totalAmount.value : this.totalAmount,
+      paidAmount:
+          data.paidAmount.present ? data.paidAmount.value : this.paidAmount,
       paymentMode:
           data.paymentMode.present ? data.paymentMode.value : this.paymentMode,
       paymentStatus: data.paymentStatus.present
@@ -363,10 +423,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   String toString() {
     return (StringBuffer('Invoice(')
           ..write('id: $id, ')
+          ..write('customerId: $customerId, ')
           ..write('invoiceNo: $invoiceNo, ')
           ..write('subtotalAmount: $subtotalAmount, ')
           ..write('discountAmount: $discountAmount, ')
           ..write('totalAmount: $totalAmount, ')
+          ..write('paidAmount: $paidAmount, ')
           ..write('paymentMode: $paymentMode, ')
           ..write('paymentStatus: $paymentStatus, ')
           ..write('notes: $notes, ')
@@ -377,17 +439,30 @@ class Invoice extends DataClass implements Insertable<Invoice> {
   }
 
   @override
-  int get hashCode => Object.hash(id, invoiceNo, subtotalAmount, discountAmount,
-      totalAmount, paymentMode, paymentStatus, notes, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      customerId,
+      invoiceNo,
+      subtotalAmount,
+      discountAmount,
+      totalAmount,
+      paidAmount,
+      paymentMode,
+      paymentStatus,
+      notes,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Invoice &&
           other.id == this.id &&
+          other.customerId == this.customerId &&
           other.invoiceNo == this.invoiceNo &&
           other.subtotalAmount == this.subtotalAmount &&
           other.discountAmount == this.discountAmount &&
           other.totalAmount == this.totalAmount &&
+          other.paidAmount == this.paidAmount &&
           other.paymentMode == this.paymentMode &&
           other.paymentStatus == this.paymentStatus &&
           other.notes == this.notes &&
@@ -397,10 +472,12 @@ class Invoice extends DataClass implements Insertable<Invoice> {
 
 class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<int> id;
+  final Value<int?> customerId;
   final Value<String> invoiceNo;
   final Value<double> subtotalAmount;
   final Value<double> discountAmount;
   final Value<double> totalAmount;
+  final Value<double> paidAmount;
   final Value<PaymentMode> paymentMode;
   final Value<PaymentStatus> paymentStatus;
   final Value<String?> notes;
@@ -408,10 +485,12 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   final Value<DateTime> updatedAt;
   const InvoicesCompanion({
     this.id = const Value.absent(),
+    this.customerId = const Value.absent(),
     this.invoiceNo = const Value.absent(),
     this.subtotalAmount = const Value.absent(),
     this.discountAmount = const Value.absent(),
     this.totalAmount = const Value.absent(),
+    this.paidAmount = const Value.absent(),
     this.paymentMode = const Value.absent(),
     this.paymentStatus = const Value.absent(),
     this.notes = const Value.absent(),
@@ -420,10 +499,12 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   });
   InvoicesCompanion.insert({
     this.id = const Value.absent(),
+    this.customerId = const Value.absent(),
     required String invoiceNo,
     this.subtotalAmount = const Value.absent(),
     this.discountAmount = const Value.absent(),
     this.totalAmount = const Value.absent(),
+    this.paidAmount = const Value.absent(),
     required PaymentMode paymentMode,
     required PaymentStatus paymentStatus,
     this.notes = const Value.absent(),
@@ -434,10 +515,12 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
         paymentStatus = Value(paymentStatus);
   static Insertable<Invoice> custom({
     Expression<int>? id,
+    Expression<int>? customerId,
     Expression<String>? invoiceNo,
     Expression<double>? subtotalAmount,
     Expression<double>? discountAmount,
     Expression<double>? totalAmount,
+    Expression<double>? paidAmount,
     Expression<int>? paymentMode,
     Expression<int>? paymentStatus,
     Expression<String>? notes,
@@ -446,10 +529,12 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (customerId != null) 'customer_id': customerId,
       if (invoiceNo != null) 'invoice_no': invoiceNo,
       if (subtotalAmount != null) 'subtotal_amount': subtotalAmount,
       if (discountAmount != null) 'discount_amount': discountAmount,
       if (totalAmount != null) 'total_amount': totalAmount,
+      if (paidAmount != null) 'paid_amount': paidAmount,
       if (paymentMode != null) 'payment_mode': paymentMode,
       if (paymentStatus != null) 'payment_status': paymentStatus,
       if (notes != null) 'notes': notes,
@@ -460,10 +545,12 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
 
   InvoicesCompanion copyWith(
       {Value<int>? id,
+      Value<int?>? customerId,
       Value<String>? invoiceNo,
       Value<double>? subtotalAmount,
       Value<double>? discountAmount,
       Value<double>? totalAmount,
+      Value<double>? paidAmount,
       Value<PaymentMode>? paymentMode,
       Value<PaymentStatus>? paymentStatus,
       Value<String?>? notes,
@@ -471,10 +558,12 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
       Value<DateTime>? updatedAt}) {
     return InvoicesCompanion(
       id: id ?? this.id,
+      customerId: customerId ?? this.customerId,
       invoiceNo: invoiceNo ?? this.invoiceNo,
       subtotalAmount: subtotalAmount ?? this.subtotalAmount,
       discountAmount: discountAmount ?? this.discountAmount,
       totalAmount: totalAmount ?? this.totalAmount,
+      paidAmount: paidAmount ?? this.paidAmount,
       paymentMode: paymentMode ?? this.paymentMode,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       notes: notes ?? this.notes,
@@ -489,6 +578,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
+    if (customerId.present) {
+      map['customer_id'] = Variable<int>(customerId.value);
+    }
     if (invoiceNo.present) {
       map['invoice_no'] = Variable<String>(invoiceNo.value);
     }
@@ -500,6 +592,9 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
     }
     if (totalAmount.present) {
       map['total_amount'] = Variable<double>(totalAmount.value);
+    }
+    if (paidAmount.present) {
+      map['paid_amount'] = Variable<double>(paidAmount.value);
     }
     if (paymentMode.present) {
       map['payment_mode'] = Variable<int>(
@@ -525,10 +620,12 @@ class InvoicesCompanion extends UpdateCompanion<Invoice> {
   String toString() {
     return (StringBuffer('InvoicesCompanion(')
           ..write('id: $id, ')
+          ..write('customerId: $customerId, ')
           ..write('invoiceNo: $invoiceNo, ')
           ..write('subtotalAmount: $subtotalAmount, ')
           ..write('discountAmount: $discountAmount, ')
           ..write('totalAmount: $totalAmount, ')
+          ..write('paidAmount: $paidAmount, ')
           ..write('paymentMode: $paymentMode, ')
           ..write('paymentStatus: $paymentStatus, ')
           ..write('notes: $notes, ')
@@ -2151,6 +2248,1215 @@ class DocumentSeriesNumbersCompanion
   }
 }
 
+class $LedgersTable extends Ledgers with TableInfo<$LedgersTable, Ledger> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LedgersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 120),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 20),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [id, name, type, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ledgers';
+  @override
+  VerificationContext validateIntegrity(Insertable<Ledger> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Ledger map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Ledger(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $LedgersTable createAlias(String alias) {
+    return $LedgersTable(attachedDatabase, alias);
+  }
+}
+
+class Ledger extends DataClass implements Insertable<Ledger> {
+  final int id;
+  final String name;
+  final String type;
+  final DateTime createdAt;
+  const Ledger(
+      {required this.id,
+      required this.name,
+      required this.type,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LedgersCompanion toCompanion(bool nullToAbsent) {
+    return LedgersCompanion(
+      id: Value(id),
+      name: Value(name),
+      type: Value(type),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Ledger.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Ledger(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Ledger copyWith({int? id, String? name, String? type, DateTime? createdAt}) =>
+      Ledger(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        type: type ?? this.type,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  Ledger copyWithCompanion(LedgersCompanion data) {
+    return Ledger(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Ledger(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, type, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Ledger &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.createdAt == this.createdAt);
+}
+
+class LedgersCompanion extends UpdateCompanion<Ledger> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<DateTime> createdAt;
+  const LedgersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  LedgersCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required String type,
+    this.createdAt = const Value.absent(),
+  })  : name = Value(name),
+        type = Value(type);
+  static Insertable<Ledger> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  LedgersCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? name,
+      Value<String>? type,
+      Value<DateTime>? createdAt}) {
+    return LedgersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LedgersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CustomersTable extends Customers
+    with TableInfo<$CustomersTable, Customer> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CustomersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 120),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
+  @override
+  late final GeneratedColumn<String> phone = GeneratedColumn<String>(
+      'phone', aliasedName, true,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 20),
+      type: DriftSqlType.string,
+      requiredDuringInsert: false);
+  static const VerificationMeta _addressMeta =
+      const VerificationMeta('address');
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+      'address', aliasedName, true,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 255),
+      type: DriftSqlType.string,
+      requiredDuringInsert: false);
+  static const VerificationMeta _ledgerIdMeta =
+      const VerificationMeta('ledgerId');
+  @override
+  late final GeneratedColumn<int> ledgerId = GeneratedColumn<int>(
+      'ledger_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES ledgers (id)'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, name, phone, address, ledgerId, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'customers';
+  @override
+  VerificationContext validateIntegrity(Insertable<Customer> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('phone')) {
+      context.handle(
+          _phoneMeta, phone.isAcceptableOrUnknown(data['phone']!, _phoneMeta));
+    }
+    if (data.containsKey('address')) {
+      context.handle(_addressMeta,
+          address.isAcceptableOrUnknown(data['address']!, _addressMeta));
+    }
+    if (data.containsKey('ledger_id')) {
+      context.handle(_ledgerIdMeta,
+          ledgerId.isAcceptableOrUnknown(data['ledger_id']!, _ledgerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ledgerIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Customer map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Customer(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      phone: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}phone']),
+      address: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}address']),
+      ledgerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ledger_id'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $CustomersTable createAlias(String alias) {
+    return $CustomersTable(attachedDatabase, alias);
+  }
+}
+
+class Customer extends DataClass implements Insertable<Customer> {
+  final int id;
+  final String name;
+  final String? phone;
+  final String? address;
+  final int ledgerId;
+  final DateTime createdAt;
+  const Customer(
+      {required this.id,
+      required this.name,
+      this.phone,
+      this.address,
+      required this.ledgerId,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || phone != null) {
+      map['phone'] = Variable<String>(phone);
+    }
+    if (!nullToAbsent || address != null) {
+      map['address'] = Variable<String>(address);
+    }
+    map['ledger_id'] = Variable<int>(ledgerId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  CustomersCompanion toCompanion(bool nullToAbsent) {
+    return CustomersCompanion(
+      id: Value(id),
+      name: Value(name),
+      phone:
+          phone == null && nullToAbsent ? const Value.absent() : Value(phone),
+      address: address == null && nullToAbsent
+          ? const Value.absent()
+          : Value(address),
+      ledgerId: Value(ledgerId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Customer.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Customer(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      phone: serializer.fromJson<String?>(json['phone']),
+      address: serializer.fromJson<String?>(json['address']),
+      ledgerId: serializer.fromJson<int>(json['ledgerId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'phone': serializer.toJson<String?>(phone),
+      'address': serializer.toJson<String?>(address),
+      'ledgerId': serializer.toJson<int>(ledgerId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Customer copyWith(
+          {int? id,
+          String? name,
+          Value<String?> phone = const Value.absent(),
+          Value<String?> address = const Value.absent(),
+          int? ledgerId,
+          DateTime? createdAt}) =>
+      Customer(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        phone: phone.present ? phone.value : this.phone,
+        address: address.present ? address.value : this.address,
+        ledgerId: ledgerId ?? this.ledgerId,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  Customer copyWithCompanion(CustomersCompanion data) {
+    return Customer(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      phone: data.phone.present ? data.phone.value : this.phone,
+      address: data.address.present ? data.address.value : this.address,
+      ledgerId: data.ledgerId.present ? data.ledgerId.value : this.ledgerId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Customer(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('phone: $phone, ')
+          ..write('address: $address, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, phone, address, ledgerId, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Customer &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.phone == this.phone &&
+          other.address == this.address &&
+          other.ledgerId == this.ledgerId &&
+          other.createdAt == this.createdAt);
+}
+
+class CustomersCompanion extends UpdateCompanion<Customer> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String?> phone;
+  final Value<String?> address;
+  final Value<int> ledgerId;
+  final Value<DateTime> createdAt;
+  const CustomersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.address = const Value.absent(),
+    this.ledgerId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  CustomersCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    this.phone = const Value.absent(),
+    this.address = const Value.absent(),
+    required int ledgerId,
+    this.createdAt = const Value.absent(),
+  })  : name = Value(name),
+        ledgerId = Value(ledgerId);
+  static Insertable<Customer> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? phone,
+    Expression<String>? address,
+    Expression<int>? ledgerId,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (phone != null) 'phone': phone,
+      if (address != null) 'address': address,
+      if (ledgerId != null) 'ledger_id': ledgerId,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  CustomersCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? name,
+      Value<String?>? phone,
+      Value<String?>? address,
+      Value<int>? ledgerId,
+      Value<DateTime>? createdAt}) {
+    return CustomersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
+      ledgerId: ledgerId ?? this.ledgerId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (phone.present) {
+      map['phone'] = Variable<String>(phone.value);
+    }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
+    if (ledgerId.present) {
+      map['ledger_id'] = Variable<int>(ledgerId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('phone: $phone, ')
+          ..write('address: $address, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $VouchersTable extends Vouchers with TableInfo<$VouchersTable, Voucher> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VouchersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 20),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _referenceIdMeta =
+      const VerificationMeta('referenceId');
+  @override
+  late final GeneratedColumn<int> referenceId = GeneratedColumn<int>(
+      'reference_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [id, type, referenceId, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'vouchers';
+  @override
+  VerificationContext validateIntegrity(Insertable<Voucher> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('reference_id')) {
+      context.handle(
+          _referenceIdMeta,
+          referenceId.isAcceptableOrUnknown(
+              data['reference_id']!, _referenceIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Voucher map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Voucher(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      referenceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}reference_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $VouchersTable createAlias(String alias) {
+    return $VouchersTable(attachedDatabase, alias);
+  }
+}
+
+class Voucher extends DataClass implements Insertable<Voucher> {
+  final int id;
+  final String type;
+  final int? referenceId;
+  final DateTime createdAt;
+  const Voucher(
+      {required this.id,
+      required this.type,
+      this.referenceId,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || referenceId != null) {
+      map['reference_id'] = Variable<int>(referenceId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  VouchersCompanion toCompanion(bool nullToAbsent) {
+    return VouchersCompanion(
+      id: Value(id),
+      type: Value(type),
+      referenceId: referenceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Voucher.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Voucher(
+      id: serializer.fromJson<int>(json['id']),
+      type: serializer.fromJson<String>(json['type']),
+      referenceId: serializer.fromJson<int?>(json['referenceId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'type': serializer.toJson<String>(type),
+      'referenceId': serializer.toJson<int?>(referenceId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Voucher copyWith(
+          {int? id,
+          String? type,
+          Value<int?> referenceId = const Value.absent(),
+          DateTime? createdAt}) =>
+      Voucher(
+        id: id ?? this.id,
+        type: type ?? this.type,
+        referenceId: referenceId.present ? referenceId.value : this.referenceId,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  Voucher copyWithCompanion(VouchersCompanion data) {
+    return Voucher(
+      id: data.id.present ? data.id.value : this.id,
+      type: data.type.present ? data.type.value : this.type,
+      referenceId:
+          data.referenceId.present ? data.referenceId.value : this.referenceId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Voucher(')
+          ..write('id: $id, ')
+          ..write('type: $type, ')
+          ..write('referenceId: $referenceId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, type, referenceId, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Voucher &&
+          other.id == this.id &&
+          other.type == this.type &&
+          other.referenceId == this.referenceId &&
+          other.createdAt == this.createdAt);
+}
+
+class VouchersCompanion extends UpdateCompanion<Voucher> {
+  final Value<int> id;
+  final Value<String> type;
+  final Value<int?> referenceId;
+  final Value<DateTime> createdAt;
+  const VouchersCompanion({
+    this.id = const Value.absent(),
+    this.type = const Value.absent(),
+    this.referenceId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  VouchersCompanion.insert({
+    this.id = const Value.absent(),
+    required String type,
+    this.referenceId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : type = Value(type);
+  static Insertable<Voucher> custom({
+    Expression<int>? id,
+    Expression<String>? type,
+    Expression<int>? referenceId,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (type != null) 'type': type,
+      if (referenceId != null) 'reference_id': referenceId,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  VouchersCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? type,
+      Value<int?>? referenceId,
+      Value<DateTime>? createdAt}) {
+    return VouchersCompanion(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      referenceId: referenceId ?? this.referenceId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (referenceId.present) {
+      map['reference_id'] = Variable<int>(referenceId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VouchersCompanion(')
+          ..write('id: $id, ')
+          ..write('type: $type, ')
+          ..write('referenceId: $referenceId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LedgerEntriesTable extends LedgerEntries
+    with TableInfo<$LedgerEntriesTable, LedgerEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LedgerEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _voucherIdMeta =
+      const VerificationMeta('voucherId');
+  @override
+  late final GeneratedColumn<int> voucherId = GeneratedColumn<int>(
+      'voucher_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES vouchers (id)'));
+  static const VerificationMeta _ledgerIdMeta =
+      const VerificationMeta('ledgerId');
+  @override
+  late final GeneratedColumn<int> ledgerId = GeneratedColumn<int>(
+      'ledger_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES ledgers (id)'));
+  static const VerificationMeta _debitMeta = const VerificationMeta('debit');
+  @override
+  late final GeneratedColumn<double> debit = GeneratedColumn<double>(
+      'debit', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _creditMeta = const VerificationMeta('credit');
+  @override
+  late final GeneratedColumn<double> credit = GeneratedColumn<double>(
+      'credit', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, voucherId, ledgerId, debit, credit, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ledger_entries';
+  @override
+  VerificationContext validateIntegrity(Insertable<LedgerEntry> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('voucher_id')) {
+      context.handle(_voucherIdMeta,
+          voucherId.isAcceptableOrUnknown(data['voucher_id']!, _voucherIdMeta));
+    } else if (isInserting) {
+      context.missing(_voucherIdMeta);
+    }
+    if (data.containsKey('ledger_id')) {
+      context.handle(_ledgerIdMeta,
+          ledgerId.isAcceptableOrUnknown(data['ledger_id']!, _ledgerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ledgerIdMeta);
+    }
+    if (data.containsKey('debit')) {
+      context.handle(
+          _debitMeta, debit.isAcceptableOrUnknown(data['debit']!, _debitMeta));
+    }
+    if (data.containsKey('credit')) {
+      context.handle(_creditMeta,
+          credit.isAcceptableOrUnknown(data['credit']!, _creditMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LedgerEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LedgerEntry(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      voucherId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}voucher_id'])!,
+      ledgerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ledger_id'])!,
+      debit: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}debit'])!,
+      credit: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}credit'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $LedgerEntriesTable createAlias(String alias) {
+    return $LedgerEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
+  final int id;
+  final int voucherId;
+  final int ledgerId;
+  final double debit;
+  final double credit;
+  final DateTime createdAt;
+  const LedgerEntry(
+      {required this.id,
+      required this.voucherId,
+      required this.ledgerId,
+      required this.debit,
+      required this.credit,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['voucher_id'] = Variable<int>(voucherId);
+    map['ledger_id'] = Variable<int>(ledgerId);
+    map['debit'] = Variable<double>(debit);
+    map['credit'] = Variable<double>(credit);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LedgerEntriesCompanion toCompanion(bool nullToAbsent) {
+    return LedgerEntriesCompanion(
+      id: Value(id),
+      voucherId: Value(voucherId),
+      ledgerId: Value(ledgerId),
+      debit: Value(debit),
+      credit: Value(credit),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LedgerEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LedgerEntry(
+      id: serializer.fromJson<int>(json['id']),
+      voucherId: serializer.fromJson<int>(json['voucherId']),
+      ledgerId: serializer.fromJson<int>(json['ledgerId']),
+      debit: serializer.fromJson<double>(json['debit']),
+      credit: serializer.fromJson<double>(json['credit']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'voucherId': serializer.toJson<int>(voucherId),
+      'ledgerId': serializer.toJson<int>(ledgerId),
+      'debit': serializer.toJson<double>(debit),
+      'credit': serializer.toJson<double>(credit),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LedgerEntry copyWith(
+          {int? id,
+          int? voucherId,
+          int? ledgerId,
+          double? debit,
+          double? credit,
+          DateTime? createdAt}) =>
+      LedgerEntry(
+        id: id ?? this.id,
+        voucherId: voucherId ?? this.voucherId,
+        ledgerId: ledgerId ?? this.ledgerId,
+        debit: debit ?? this.debit,
+        credit: credit ?? this.credit,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  LedgerEntry copyWithCompanion(LedgerEntriesCompanion data) {
+    return LedgerEntry(
+      id: data.id.present ? data.id.value : this.id,
+      voucherId: data.voucherId.present ? data.voucherId.value : this.voucherId,
+      ledgerId: data.ledgerId.present ? data.ledgerId.value : this.ledgerId,
+      debit: data.debit.present ? data.debit.value : this.debit,
+      credit: data.credit.present ? data.credit.value : this.credit,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LedgerEntry(')
+          ..write('id: $id, ')
+          ..write('voucherId: $voucherId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('debit: $debit, ')
+          ..write('credit: $credit, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, voucherId, ledgerId, debit, credit, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LedgerEntry &&
+          other.id == this.id &&
+          other.voucherId == this.voucherId &&
+          other.ledgerId == this.ledgerId &&
+          other.debit == this.debit &&
+          other.credit == this.credit &&
+          other.createdAt == this.createdAt);
+}
+
+class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
+  final Value<int> id;
+  final Value<int> voucherId;
+  final Value<int> ledgerId;
+  final Value<double> debit;
+  final Value<double> credit;
+  final Value<DateTime> createdAt;
+  const LedgerEntriesCompanion({
+    this.id = const Value.absent(),
+    this.voucherId = const Value.absent(),
+    this.ledgerId = const Value.absent(),
+    this.debit = const Value.absent(),
+    this.credit = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  LedgerEntriesCompanion.insert({
+    this.id = const Value.absent(),
+    required int voucherId,
+    required int ledgerId,
+    this.debit = const Value.absent(),
+    this.credit = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  })  : voucherId = Value(voucherId),
+        ledgerId = Value(ledgerId);
+  static Insertable<LedgerEntry> custom({
+    Expression<int>? id,
+    Expression<int>? voucherId,
+    Expression<int>? ledgerId,
+    Expression<double>? debit,
+    Expression<double>? credit,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (voucherId != null) 'voucher_id': voucherId,
+      if (ledgerId != null) 'ledger_id': ledgerId,
+      if (debit != null) 'debit': debit,
+      if (credit != null) 'credit': credit,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  LedgerEntriesCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? voucherId,
+      Value<int>? ledgerId,
+      Value<double>? debit,
+      Value<double>? credit,
+      Value<DateTime>? createdAt}) {
+    return LedgerEntriesCompanion(
+      id: id ?? this.id,
+      voucherId: voucherId ?? this.voucherId,
+      ledgerId: ledgerId ?? this.ledgerId,
+      debit: debit ?? this.debit,
+      credit: credit ?? this.credit,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (voucherId.present) {
+      map['voucher_id'] = Variable<int>(voucherId.value);
+    }
+    if (ledgerId.present) {
+      map['ledger_id'] = Variable<int>(ledgerId.value);
+    }
+    if (debit.present) {
+      map['debit'] = Variable<double>(debit.value);
+    }
+    if (credit.present) {
+      map['credit'] = Variable<double>(credit.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LedgerEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('voucherId: $voucherId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('debit: $debit, ')
+          ..write('credit: $credit, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2159,20 +3465,34 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $InventoryItemsTable inventoryItems = $InventoryItemsTable(this);
   late final $DocumentSeriesNumbersTable documentSeriesNumbers =
       $DocumentSeriesNumbersTable(this);
+  late final $LedgersTable ledgers = $LedgersTable(this);
+  late final $CustomersTable customers = $CustomersTable(this);
+  late final $VouchersTable vouchers = $VouchersTable(this);
+  late final $LedgerEntriesTable ledgerEntries = $LedgerEntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [invoices, invoiceItems, inventoryItems, documentSeriesNumbers];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        invoices,
+        invoiceItems,
+        inventoryItems,
+        documentSeriesNumbers,
+        ledgers,
+        customers,
+        vouchers,
+        ledgerEntries
+      ];
 }
 
 typedef $$InvoicesTableCreateCompanionBuilder = InvoicesCompanion Function({
   Value<int> id,
+  Value<int?> customerId,
   required String invoiceNo,
   Value<double> subtotalAmount,
   Value<double> discountAmount,
   Value<double> totalAmount,
+  Value<double> paidAmount,
   required PaymentMode paymentMode,
   required PaymentStatus paymentStatus,
   Value<String?> notes,
@@ -2181,10 +3501,12 @@ typedef $$InvoicesTableCreateCompanionBuilder = InvoicesCompanion Function({
 });
 typedef $$InvoicesTableUpdateCompanionBuilder = InvoicesCompanion Function({
   Value<int> id,
+  Value<int?> customerId,
   Value<String> invoiceNo,
   Value<double> subtotalAmount,
   Value<double> discountAmount,
   Value<double> totalAmount,
+  Value<double> paidAmount,
   Value<PaymentMode> paymentMode,
   Value<PaymentStatus> paymentStatus,
   Value<String?> notes,
@@ -2210,10 +3532,12 @@ class $$InvoicesTableTableManager extends RootTableManager<
               $$InvoicesTableOrderingComposer(ComposerState(db, table)),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int?> customerId = const Value.absent(),
             Value<String> invoiceNo = const Value.absent(),
             Value<double> subtotalAmount = const Value.absent(),
             Value<double> discountAmount = const Value.absent(),
             Value<double> totalAmount = const Value.absent(),
+            Value<double> paidAmount = const Value.absent(),
             Value<PaymentMode> paymentMode = const Value.absent(),
             Value<PaymentStatus> paymentStatus = const Value.absent(),
             Value<String?> notes = const Value.absent(),
@@ -2222,10 +3546,12 @@ class $$InvoicesTableTableManager extends RootTableManager<
           }) =>
               InvoicesCompanion(
             id: id,
+            customerId: customerId,
             invoiceNo: invoiceNo,
             subtotalAmount: subtotalAmount,
             discountAmount: discountAmount,
             totalAmount: totalAmount,
+            paidAmount: paidAmount,
             paymentMode: paymentMode,
             paymentStatus: paymentStatus,
             notes: notes,
@@ -2234,10 +3560,12 @@ class $$InvoicesTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int?> customerId = const Value.absent(),
             required String invoiceNo,
             Value<double> subtotalAmount = const Value.absent(),
             Value<double> discountAmount = const Value.absent(),
             Value<double> totalAmount = const Value.absent(),
+            Value<double> paidAmount = const Value.absent(),
             required PaymentMode paymentMode,
             required PaymentStatus paymentStatus,
             Value<String?> notes = const Value.absent(),
@@ -2246,10 +3574,12 @@ class $$InvoicesTableTableManager extends RootTableManager<
           }) =>
               InvoicesCompanion.insert(
             id: id,
+            customerId: customerId,
             invoiceNo: invoiceNo,
             subtotalAmount: subtotalAmount,
             discountAmount: discountAmount,
             totalAmount: totalAmount,
+            paidAmount: paidAmount,
             paymentMode: paymentMode,
             paymentStatus: paymentStatus,
             notes: notes,
@@ -2264,6 +3594,11 @@ class $$InvoicesTableFilterComposer
   $$InvoicesTableFilterComposer(super.$state);
   ColumnFilters<int> get id => $state.composableBuilder(
       column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get customerId => $state.composableBuilder(
+      column: $state.table.customerId,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -2284,6 +3619,11 @@ class $$InvoicesTableFilterComposer
 
   ColumnFilters<double> get totalAmount => $state.composableBuilder(
       column: $state.table.totalAmount,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<double> get paidAmount => $state.composableBuilder(
+      column: $state.table.paidAmount,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -2338,6 +3678,11 @@ class $$InvoicesTableOrderingComposer
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
+  ColumnOrderings<int> get customerId => $state.composableBuilder(
+      column: $state.table.customerId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
   ColumnOrderings<String> get invoiceNo => $state.composableBuilder(
       column: $state.table.invoiceNo,
       builder: (column, joinBuilders) =>
@@ -2355,6 +3700,11 @@ class $$InvoicesTableOrderingComposer
 
   ColumnOrderings<double> get totalAmount => $state.composableBuilder(
       column: $state.table.totalAmount,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<double> get paidAmount => $state.composableBuilder(
+      column: $state.table.paidAmount,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
@@ -3024,6 +4374,569 @@ class $$DocumentSeriesNumbersTableOrderingComposer
           ColumnOrderings(column, joinBuilders: joinBuilders));
 }
 
+typedef $$LedgersTableCreateCompanionBuilder = LedgersCompanion Function({
+  Value<int> id,
+  required String name,
+  required String type,
+  Value<DateTime> createdAt,
+});
+typedef $$LedgersTableUpdateCompanionBuilder = LedgersCompanion Function({
+  Value<int> id,
+  Value<String> name,
+  Value<String> type,
+  Value<DateTime> createdAt,
+});
+
+class $$LedgersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LedgersTable,
+    Ledger,
+    $$LedgersTableFilterComposer,
+    $$LedgersTableOrderingComposer,
+    $$LedgersTableCreateCompanionBuilder,
+    $$LedgersTableUpdateCompanionBuilder> {
+  $$LedgersTableTableManager(_$AppDatabase db, $LedgersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$LedgersTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$LedgersTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              LedgersCompanion(
+            id: id,
+            name: name,
+            type: type,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String name,
+            required String type,
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              LedgersCompanion.insert(
+            id: id,
+            name: name,
+            type: type,
+            createdAt: createdAt,
+          ),
+        ));
+}
+
+class $$LedgersTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $LedgersTable> {
+  $$LedgersTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get name => $state.composableBuilder(
+      column: $state.table.name,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ComposableFilter customersRefs(
+      ComposableFilter Function($$CustomersTableFilterComposer f) f) {
+    final $$CustomersTableFilterComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $state.db.customers,
+        getReferencedColumn: (t) => t.ledgerId,
+        builder: (joinBuilder, parentComposers) =>
+            $$CustomersTableFilterComposer(ComposerState(
+                $state.db, $state.db.customers, joinBuilder, parentComposers)));
+    return f(composer);
+  }
+
+  ComposableFilter ledgerEntriesRefs(
+      ComposableFilter Function($$LedgerEntriesTableFilterComposer f) f) {
+    final $$LedgerEntriesTableFilterComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $state.db.ledgerEntries,
+        getReferencedColumn: (t) => t.ledgerId,
+        builder: (joinBuilder, parentComposers) =>
+            $$LedgerEntriesTableFilterComposer(ComposerState($state.db,
+                $state.db.ledgerEntries, joinBuilder, parentComposers)));
+    return f(composer);
+  }
+}
+
+class $$LedgersTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $LedgersTable> {
+  $$LedgersTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get name => $state.composableBuilder(
+      column: $state.table.name,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
+typedef $$CustomersTableCreateCompanionBuilder = CustomersCompanion Function({
+  Value<int> id,
+  required String name,
+  Value<String?> phone,
+  Value<String?> address,
+  required int ledgerId,
+  Value<DateTime> createdAt,
+});
+typedef $$CustomersTableUpdateCompanionBuilder = CustomersCompanion Function({
+  Value<int> id,
+  Value<String> name,
+  Value<String?> phone,
+  Value<String?> address,
+  Value<int> ledgerId,
+  Value<DateTime> createdAt,
+});
+
+class $$CustomersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CustomersTable,
+    Customer,
+    $$CustomersTableFilterComposer,
+    $$CustomersTableOrderingComposer,
+    $$CustomersTableCreateCompanionBuilder,
+    $$CustomersTableUpdateCompanionBuilder> {
+  $$CustomersTableTableManager(_$AppDatabase db, $CustomersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$CustomersTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$CustomersTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String?> phone = const Value.absent(),
+            Value<String?> address = const Value.absent(),
+            Value<int> ledgerId = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              CustomersCompanion(
+            id: id,
+            name: name,
+            phone: phone,
+            address: address,
+            ledgerId: ledgerId,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String name,
+            Value<String?> phone = const Value.absent(),
+            Value<String?> address = const Value.absent(),
+            required int ledgerId,
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              CustomersCompanion.insert(
+            id: id,
+            name: name,
+            phone: phone,
+            address: address,
+            ledgerId: ledgerId,
+            createdAt: createdAt,
+          ),
+        ));
+}
+
+class $$CustomersTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $CustomersTable> {
+  $$CustomersTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get name => $state.composableBuilder(
+      column: $state.table.name,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get phone => $state.composableBuilder(
+      column: $state.table.phone,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get address => $state.composableBuilder(
+      column: $state.table.address,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  $$LedgersTableFilterComposer get ledgerId {
+    final $$LedgersTableFilterComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.ledgerId,
+        referencedTable: $state.db.ledgers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder, parentComposers) => $$LedgersTableFilterComposer(
+            ComposerState(
+                $state.db, $state.db.ledgers, joinBuilder, parentComposers)));
+    return composer;
+  }
+}
+
+class $$CustomersTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $CustomersTable> {
+  $$CustomersTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get name => $state.composableBuilder(
+      column: $state.table.name,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get phone => $state.composableBuilder(
+      column: $state.table.phone,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get address => $state.composableBuilder(
+      column: $state.table.address,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  $$LedgersTableOrderingComposer get ledgerId {
+    final $$LedgersTableOrderingComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.ledgerId,
+        referencedTable: $state.db.ledgers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder, parentComposers) =>
+            $$LedgersTableOrderingComposer(ComposerState(
+                $state.db, $state.db.ledgers, joinBuilder, parentComposers)));
+    return composer;
+  }
+}
+
+typedef $$VouchersTableCreateCompanionBuilder = VouchersCompanion Function({
+  Value<int> id,
+  required String type,
+  Value<int?> referenceId,
+  Value<DateTime> createdAt,
+});
+typedef $$VouchersTableUpdateCompanionBuilder = VouchersCompanion Function({
+  Value<int> id,
+  Value<String> type,
+  Value<int?> referenceId,
+  Value<DateTime> createdAt,
+});
+
+class $$VouchersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $VouchersTable,
+    Voucher,
+    $$VouchersTableFilterComposer,
+    $$VouchersTableOrderingComposer,
+    $$VouchersTableCreateCompanionBuilder,
+    $$VouchersTableUpdateCompanionBuilder> {
+  $$VouchersTableTableManager(_$AppDatabase db, $VouchersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$VouchersTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$VouchersTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<int?> referenceId = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              VouchersCompanion(
+            id: id,
+            type: type,
+            referenceId: referenceId,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String type,
+            Value<int?> referenceId = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              VouchersCompanion.insert(
+            id: id,
+            type: type,
+            referenceId: referenceId,
+            createdAt: createdAt,
+          ),
+        ));
+}
+
+class $$VouchersTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $VouchersTable> {
+  $$VouchersTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get referenceId => $state.composableBuilder(
+      column: $state.table.referenceId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ComposableFilter ledgerEntriesRefs(
+      ComposableFilter Function($$LedgerEntriesTableFilterComposer f) f) {
+    final $$LedgerEntriesTableFilterComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $state.db.ledgerEntries,
+        getReferencedColumn: (t) => t.voucherId,
+        builder: (joinBuilder, parentComposers) =>
+            $$LedgerEntriesTableFilterComposer(ComposerState($state.db,
+                $state.db.ledgerEntries, joinBuilder, parentComposers)));
+    return f(composer);
+  }
+}
+
+class $$VouchersTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $VouchersTable> {
+  $$VouchersTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get referenceId => $state.composableBuilder(
+      column: $state.table.referenceId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
+typedef $$LedgerEntriesTableCreateCompanionBuilder = LedgerEntriesCompanion
+    Function({
+  Value<int> id,
+  required int voucherId,
+  required int ledgerId,
+  Value<double> debit,
+  Value<double> credit,
+  Value<DateTime> createdAt,
+});
+typedef $$LedgerEntriesTableUpdateCompanionBuilder = LedgerEntriesCompanion
+    Function({
+  Value<int> id,
+  Value<int> voucherId,
+  Value<int> ledgerId,
+  Value<double> debit,
+  Value<double> credit,
+  Value<DateTime> createdAt,
+});
+
+class $$LedgerEntriesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LedgerEntriesTable,
+    LedgerEntry,
+    $$LedgerEntriesTableFilterComposer,
+    $$LedgerEntriesTableOrderingComposer,
+    $$LedgerEntriesTableCreateCompanionBuilder,
+    $$LedgerEntriesTableUpdateCompanionBuilder> {
+  $$LedgerEntriesTableTableManager(_$AppDatabase db, $LedgerEntriesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$LedgerEntriesTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$LedgerEntriesTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> voucherId = const Value.absent(),
+            Value<int> ledgerId = const Value.absent(),
+            Value<double> debit = const Value.absent(),
+            Value<double> credit = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              LedgerEntriesCompanion(
+            id: id,
+            voucherId: voucherId,
+            ledgerId: ledgerId,
+            debit: debit,
+            credit: credit,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int voucherId,
+            required int ledgerId,
+            Value<double> debit = const Value.absent(),
+            Value<double> credit = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              LedgerEntriesCompanion.insert(
+            id: id,
+            voucherId: voucherId,
+            ledgerId: ledgerId,
+            debit: debit,
+            credit: credit,
+            createdAt: createdAt,
+          ),
+        ));
+}
+
+class $$LedgerEntriesTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $LedgerEntriesTable> {
+  $$LedgerEntriesTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<double> get debit => $state.composableBuilder(
+      column: $state.table.debit,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<double> get credit => $state.composableBuilder(
+      column: $state.table.credit,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  $$VouchersTableFilterComposer get voucherId {
+    final $$VouchersTableFilterComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.voucherId,
+        referencedTable: $state.db.vouchers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder, parentComposers) =>
+            $$VouchersTableFilterComposer(ComposerState(
+                $state.db, $state.db.vouchers, joinBuilder, parentComposers)));
+    return composer;
+  }
+
+  $$LedgersTableFilterComposer get ledgerId {
+    final $$LedgersTableFilterComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.ledgerId,
+        referencedTable: $state.db.ledgers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder, parentComposers) => $$LedgersTableFilterComposer(
+            ComposerState(
+                $state.db, $state.db.ledgers, joinBuilder, parentComposers)));
+    return composer;
+  }
+}
+
+class $$LedgerEntriesTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $LedgerEntriesTable> {
+  $$LedgerEntriesTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<double> get debit => $state.composableBuilder(
+      column: $state.table.debit,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<double> get credit => $state.composableBuilder(
+      column: $state.table.credit,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  $$VouchersTableOrderingComposer get voucherId {
+    final $$VouchersTableOrderingComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.voucherId,
+        referencedTable: $state.db.vouchers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder, parentComposers) =>
+            $$VouchersTableOrderingComposer(ComposerState(
+                $state.db, $state.db.vouchers, joinBuilder, parentComposers)));
+    return composer;
+  }
+
+  $$LedgersTableOrderingComposer get ledgerId {
+    final $$LedgersTableOrderingComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.ledgerId,
+        referencedTable: $state.db.ledgers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder, parentComposers) =>
+            $$LedgersTableOrderingComposer(ComposerState(
+                $state.db, $state.db.ledgers, joinBuilder, parentComposers)));
+    return composer;
+  }
+}
+
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
@@ -3035,4 +4948,12 @@ class $AppDatabaseManager {
       $$InventoryItemsTableTableManager(_db, _db.inventoryItems);
   $$DocumentSeriesNumbersTableTableManager get documentSeriesNumbers =>
       $$DocumentSeriesNumbersTableTableManager(_db, _db.documentSeriesNumbers);
+  $$LedgersTableTableManager get ledgers =>
+      $$LedgersTableTableManager(_db, _db.ledgers);
+  $$CustomersTableTableManager get customers =>
+      $$CustomersTableTableManager(_db, _db.customers);
+  $$VouchersTableTableManager get vouchers =>
+      $$VouchersTableTableManager(_db, _db.vouchers);
+  $$LedgerEntriesTableTableManager get ledgerEntries =>
+      $$LedgerEntriesTableTableManager(_db, _db.ledgerEntries);
 }

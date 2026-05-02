@@ -64,6 +64,24 @@ class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
     await state.saveToPrefs(_prefs);
   }
 
+  /// Toggle credit payments
+  Future<void> setCreditPaymentEnabled(bool enabled) async {
+    state = state.copyWith(creditPaymentEnabled: enabled);
+    await state.saveToPrefs(_prefs);
+  }
+
+  /// Toggle UPI payments
+  Future<void> setUpiPaymentEnabled(bool enabled) async {
+    state = state.copyWith(upiPaymentEnabled: enabled);
+    await state.saveToPrefs(_prefs);
+  }
+
+  /// Update UPI ID used for payment QR generation
+  Future<void> setUpiId(String upiId) async {
+    state = state.copyWith(upiId: upiId.trim());
+    await state.saveToPrefs(_prefs);
+  }
+
   /// Reset to defaults
   Future<void> resetToDefaults() async {
     state = const UserPreferences();
