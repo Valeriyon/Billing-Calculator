@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
 
-/// Dark theme with green accents - elder-friendly
+/// Dark theme with blue accents - elder-friendly
 ThemeData darkTheme({double textScale = 1.0}) {
   return ThemeData(
     useMaterial3: true,

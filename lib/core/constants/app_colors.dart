@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// App color palette - Green theme for elder-friendly billing app
+/// App color palette - Blue theme for elder-friendly billing app
 class AppColors {
   AppColors._();
 
-  // Primary Green Theme
-  static const Color primary = Color(0xFF1B8F3A);
-  static const Color primaryLight = Color(0xFF4CAF50);
-  static const Color primaryDark = Color(0xFF157230);
-  static const Color primaryAccent = Color(0xFF81C784);
+  // Primary Blue Theme
+  static const Color primary = Color.fromARGB(255, 30, 124, 218);
+  static const Color primaryLight = Color(0xFF64B5F6);
+  static const Color primaryDark = Color.fromARGB(255, 36, 106, 211);
+  static const Color primaryAccent = Color(0xFF90CAF9);
 
   // Secondary Colors
-  static const Color secondary = Color(0xFF2E7D32);
-  static const Color secondaryLight = Color(0xFF60AD5E);
-  static const Color secondaryDark = Color(0xFF005005);
+  static const Color secondary = Color(0xFF1565C0);
+  static const Color secondaryLight = Color(0xFF42A5F5);
+  static const Color secondaryDark = Color(0xFF003C8F);
 
   // Background Colors - Light Mode
   static const Color backgroundLight = Color(0xFFF5F5F5);
@@ -46,16 +46,25 @@ class AppColors {
   static const Color upi = Color(0xFF7B1FA2);
   static const Color credit = Color(0xFFE65100);
 
+  // Destructive Action Button
+  static const Color destructiveBackground = Color(0xFFFFEDD5);
+  static const Color destructiveIcon = Color(0xFFD32F2F);
+
+  // Accent Button (QTY/Rate mode toggle)
+  static const Color accentBackground = Color(0xFFE7F2FD);
+  static const Color accentBorder = Color(0xFF1976D2);
+  static const Color accentText = Color(0xFF1976D2);
+
   // High Contrast Colors
   static const Color contrastBackground = Color(0xFF000000);
   static const Color contrastSurface = Color(0xFF1A1A1A);
   static const Color contrastText = Color(0xFFFFFFFF);
-  static const Color contrastPrimary = Color(0xFF00FF41);
+  static const Color contrastPrimary = Color(0xFF00B0FF);
   static const Color contrastBorder = Color(0xFFFFFFFF);
 
   // Keypad Colors
-  static const Color keypadButton = Color(0xFFE8F5E9);
-  static const Color keypadButtonDark = Color(0xFF2E3B2E);
+  static const Color keypadButton = Color(0xFFE3F2FD);
+  static const Color keypadButtonDark = Color(0xFF263242);
   static const Color keypadText = Color(0xFF212121);
   static const Color keypadTextDark = Color(0xFFE8E8E8);
 
