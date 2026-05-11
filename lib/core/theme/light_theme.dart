@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
 
-/// Light theme with green primary color - elder-friendly
+/// Light theme with blue primary color - elder-friendly
 ThemeData lightTheme({double textScale = 1.0}) {
   return ThemeData(
     useMaterial3: true,

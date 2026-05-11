@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/keypad_button.dart';
+import '../../../../core/widgets/keypad_button_back.dart';
+import '../../../../core/widgets/keypad_button_calc.dart';
 import '../../domain/calc_logic.dart';
 
 /// Calculator keypad with numbers, operators, and actions
@@ -97,46 +100,60 @@ class CalcKeypad extends ConsumerWidget {
         const SizedBox(width: AppSizes.keypadSpacing),
 
         // Col 4: Backspace, Rate/Qty (span 2), +
-        buildCol([
-          _KeypadButtonData(
-            label: '',
-            icon: Icons.backspace_outlined,
-            onPressed: calcNotifier.backspace,
-          ),
-          _KeypadButtonData(
-            label: '',
-            customHeight: height * 2 + AppSizes.keypadSpacing,
-            isAccent: true,
-            onPressed: calcNotifier.toggleMode,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  calcState.currentMode == CalcInputMode.quantity
-                      ? 'Rate'
-                      : 'Qty',
-                  style: const TextStyle(
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              KeypadButtonBack(
+                label: '',
+                icon: Icons.backspace_outlined,
+                backgroundColor: AppColors.destructiveBackground,
+                foregroundColor: AppColors.destructiveIcon,
+                onPressed: calcNotifier.backspace,
+                size: height,
+              ),
+              const SizedBox(height: AppSizes.keypadSpacing),
+              KeypadButtonCalc(
+                label: '',
+                size: height * 2 + AppSizes.keypadSpacing,
+                backgroundColor: AppColors.accentBackground,
+                foregroundColor: AppColors.accentText,
+                borderColor: AppColors.accentBorder,
+                onPressed: calcNotifier.toggleMode,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      calcState.currentMode == CalcInputMode.quantity
+                          ? 'Rate'
+                          : 'Qty',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.accentText,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Icon(
+                      Icons.close,
+                      size: AppSizes.iconSizeMedium,
+                      color: AppColors.accentText,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Icon(
-                  Icons.close,
-                  size: AppSizes.iconSizeMedium,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: AppSizes.keypadSpacing),
+              KeypadButton(
+                label: '+',
+                isAccent: true,
+                fontSize: AppSizes.fontSizeDisplay,
+                onPressed: calcState.canAddItem ? calcNotifier.addItem : () {},
+                size: height,
+              ),
+            ],
           ),
-          _KeypadButtonData(
-            label: '+',
-            isAccent: true,
-            fontSize: AppSizes.fontSizeDisplay,
-            onPressed: calcState.canAddItem ? calcNotifier.addItem : () {},
-          ),
-        ]),
+        ),
       ],
     );
   }
@@ -144,33 +161,16 @@ class CalcKeypad extends ConsumerWidget {
   Widget _buildButton(_KeypadButtonData data, double baseHeight) {
     return KeypadButton(
       label: data.label,
-      icon: data.icon,
       onPressed: data.onPressed,
-      isAccent: data.isAccent,
-      fontSize: data.fontSize,
-      size: data.customHeight ?? baseHeight,
-      child: data.child,
+      size: baseHeight,
     );
   }
 }
 
 /// Data class for keypad button configuration
 class _KeypadButtonData {
-  const _KeypadButtonData({
-    required this.label,
-    required this.onPressed,
-    this.icon,
-    this.child,
-    this.customHeight,
-    this.isAccent = false,
-    this.fontSize,
-  });
+  const _KeypadButtonData({required this.label, required this.onPressed});
 
   final String label;
   final VoidCallback onPressed;
-  final IconData? icon;
-  final Widget? child;
-  final double? customHeight;
-  final bool isAccent;
-  final double? fontSize;
 }

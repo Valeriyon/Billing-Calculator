@@ -1,7 +1,4 @@
 import 'dart:io';
-
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -777,7 +774,7 @@ class _ItemsSection extends StatelessWidget {
         ),
 
         // View All button if more than 1 item
-        if (items.length > 1)
+        if (items.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSizes.paddingMedium,
