@@ -774,7 +774,7 @@ class _ItemsSection extends StatelessWidget {
         ),
 
         // View All button if more than 1 item
-        if (items.length > 1)
+        if (items.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSizes.paddingMedium,
