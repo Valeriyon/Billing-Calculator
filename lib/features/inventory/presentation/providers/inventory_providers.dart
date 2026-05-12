@@ -70,7 +70,7 @@ class InventoryManageState {
 
 class InventoryManagerNotifier extends StateNotifier<InventoryManageState> {
   InventoryManagerNotifier(this._repository)
-      : super(const InventoryManageState()) {
+    : super(const InventoryManageState()) {
     _subscription = _repository.watchAllItems().listen(
       (items) {
         final next = state.copyWith(
@@ -152,7 +152,10 @@ class InventoryManagerNotifier extends StateNotifier<InventoryManageState> {
     } catch (error, stackTrace) {
       debugPrint('addItem failed: $error');
       debugPrintStack(stackTrace: stackTrace);
-      final message = _friendlyErrorMessage(error, fallback: 'Unable to save item');
+      final message = _friendlyErrorMessage(
+        error,
+        fallback: 'Unable to save item',
+      );
       state = state.copyWith(isSaving: false, errorMessage: message);
       return message;
     }
@@ -201,11 +204,7 @@ class InventoryManagerNotifier extends StateNotifier<InventoryManageState> {
       return fallback;
     }
 
-    const prefixes = [
-      'Exception: ',
-      'Bad state: ',
-      'Invalid argument(s): ',
-    ];
+    const prefixes = ['Exception: ', 'Bad state: ', 'Invalid argument(s): '];
 
     var cleaned = raw;
     for (final prefix in prefixes) {
@@ -247,10 +246,14 @@ class InventoryManagerNotifier extends StateNotifier<InventoryManageState> {
 
     switch (baseState.sortOrder) {
       case InventorySortOrder.nameAZ:
-        data.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        data.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
         break;
       case InventorySortOrder.nameZA:
-        data.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+        data.sort(
+          (a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()),
+        );
         break;
       case InventorySortOrder.priceLowHigh:
         data.sort((a, b) => a.price.compareTo(b.price));
@@ -271,13 +274,28 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
 });
 
 final inventoryManagerProvider =
-    StateNotifierProvider<InventoryManagerNotifier, InventoryManageState>((ref) {
-  final repository = ref.watch(inventoryRepositoryProvider);
-  return InventoryManagerNotifier(repository);
+    StateNotifierProvider<InventoryManagerNotifier, InventoryManageState>((
+      ref,
+    ) {
+      final repository = ref.watch(inventoryRepositoryProvider);
+      return InventoryManagerNotifier(repository);
+    });
+
+final inventoryBarcodeMapProvider = Provider<Map<String, InventoryItemModel>>((
+  ref,
+) {
+  final items = ref.watch(
+    inventoryManagerProvider.select((state) => state.items),
+  );
+
+  return {
+    for (final item in items)
+      if (item.barcode != null && item.barcode!.trim().isNotEmpty)
+        item.barcode!.trim(): item,
+  };
 });
 
-final inventoryItemByIdProvider = FutureProvider.family<InventoryItemModel?, int>(
-  (ref, id) {
-    return ref.watch(inventoryRepositoryProvider).getItemById(id);
-  },
-);
+final inventoryItemByIdProvider =
+    FutureProvider.family<InventoryItemModel?, int>((ref, id) {
+      return ref.watch(inventoryRepositoryProvider).getItemById(id);
+    });

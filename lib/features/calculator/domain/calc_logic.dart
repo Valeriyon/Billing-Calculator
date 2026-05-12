@@ -176,6 +176,14 @@ class CalculatorNotifier extends StateNotifier<CalculatorState> {
     );
   }
 
+  /// Append a prepared bill item to the bill.
+  void addBillItem(BillItem item) {
+    state = state.copyWith(
+      billItems: [...state.billItems, item],
+      itemCounter: state.itemCounter + 1,
+    );
+  }
+
   /// Remove item from bill by index
   void removeItem(int index) {
     if (index < 0 || index >= state.billItems.length) return;
@@ -197,6 +205,21 @@ class CalculatorNotifier extends StateNotifier<CalculatorState> {
     final newItems = List<BillItem>.from(state.billItems);
     newItems[index] = updatedItem;
     state = state.copyWith(billItems: newItems);
+  }
+
+  /// Find an existing bill item for the same inventory product.
+  int findMatchingItemIndex({int? inventoryItemId, String? barcode}) {
+    final normalizedBarcode = barcode?.trim();
+
+    return state.billItems.indexWhere((item) {
+      if (inventoryItemId != null && item.inventoryItemId == inventoryItemId) {
+        return true;
+      }
+
+      return normalizedBarcode != null &&
+          normalizedBarcode.isNotEmpty &&
+          item.barcode?.trim() == normalizedBarcode;
+    });
   }
 
   /// Set items (for restoring state)

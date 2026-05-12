@@ -137,7 +137,6 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
         return _AddToCartModal(
           item: item,
           onAddToCart: (quantity) {
-            final calcState = ref.read(calculatorProvider);
             final notifier = ref.read(calculatorProvider.notifier);
 
             final newItem = BillItem(
@@ -149,7 +148,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
               rate: item.price,
             );
 
-            notifier.setItems([...calcState.billItems, newItem]);
+            notifier.addBillItem(newItem);
 
             if (!mounted) {
               return;
