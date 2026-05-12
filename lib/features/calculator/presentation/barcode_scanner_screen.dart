@@ -1,5 +1,7 @@
+import 'dart:async';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:billing_app_pos/core/widgets/common_app_bar.dart';
-import 'package:billing_app_pos/features/inventory/domain/inventory_item_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,9 +24,14 @@ class BarcodeScannerScreen extends ConsumerStatefulWidget {
 }
 
 class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
+  static const double _maxScanWindowWidth = 280;
+  static const double _maxScanWindowHeight = 170;
+  static const Duration _minimumScanGap = Duration(milliseconds: 150);
+  static const Duration _barcodeExitThreshold = Duration(milliseconds: 700);
+
   late final MobileScannerController _scannerController;
-  String? _lastScannedCode;
-  DateTime? _lastScanTime;
+  late final AudioPlayer _beepPlayer;
+  _BarcodeScanLock? _scanLock;
 
   bool get _supportsCamera =>
       !kIsWeb &&
@@ -35,6 +42,8 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
   void initState() {
     super.initState();
     _scannerController = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      detectionTimeoutMs: 160,
       formats: const [
         BarcodeFormat.ean13,
         BarcodeFormat.ean8,
@@ -44,79 +53,65 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
         BarcodeFormat.upcE,
       ],
     );
+    _beepPlayer = AudioPlayer();
+    _beepPlayer.setReleaseMode(ReleaseMode.stop);
+    _beepPlayer.setPlayerMode(PlayerMode.lowLatency);
   }
 
   @override
   void dispose() {
+    _beepPlayer.dispose();
     _scannerController.dispose();
     super.dispose();
   }
 
   void _onDetect(BarcodeCapture capture) {
+    final barcode = _pickBestBarcode(capture.barcodes);
+    final code = barcode?.rawValue?.trim();
+    if (code == null || code.isEmpty) {
+      return;
+    }
+
     final now = DateTime.now();
-    final lastTime = _lastScanTime;
-    final lastCode = _lastScannedCode;
-
-    if (lastTime != null &&
-        lastCode != null &&
-        now.difference(lastTime).inMilliseconds < 1200) {
+    if (!_shouldAcceptBarcode(code: code, now: now)) {
       return;
     }
 
-    final barcode = capture.barcodes.firstWhere(
-      (candidate) =>
-          candidate.format != BarcodeFormat.qrCode &&
-          candidate.rawValue != null &&
-          candidate.rawValue!.trim().isNotEmpty,
-      orElse: () => const Barcode(rawValue: null),
-    );
+    _scanLock = _BarcodeScanLock(code: code, acceptedAt: now, lastSeenAt: now);
 
-    final code = barcode.rawValue?.trim();
-    if (code == null || code.isEmpty || code == lastCode) {
-      return;
-    }
-
-    _lastScannedCode = code;
-    _lastScanTime = now;
-
-    final inventoryState = ref.read(inventoryManagerProvider);
-    final matchingItem = _findInventoryItemByBarcode(
-      inventoryState.items,
-      code,
-    );
+    final matchingItem = ref.read(inventoryBarcodeMapProvider)[code];
 
     if (matchingItem == null) {
       debugPrint('No inventory item found for barcode: $code');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No inventory item found for $code'),
-          duration: const Duration(milliseconds: 1200),
-        ),
-      );
+      _showScannerMessage('No inventory item found for $code');
       return;
     }
 
     final calcState = ref.read(calculatorProvider);
     final calcNotifier = ref.read(calculatorProvider.notifier);
 
-    final alreadyAdded = calcState.billItems.any(
-      (item) =>
-          item.inventoryItemId == matchingItem.id ||
-          (item.barcode?.trim() == code),
+    final existingIndex = calcNotifier.findMatchingItemIndex(
+      inventoryItemId: matchingItem.id,
+      barcode: code,
     );
 
-    if (alreadyAdded) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${matchingItem.name} already added'),
-          duration: const Duration(milliseconds: 1200),
-        ),
+    if (existingIndex != -1) {
+      final existingItem = calcState.billItems[existingIndex];
+      final updatedQuantity = existingItem.quantity + 1;
+
+      calcNotifier.updateItem(
+        existingIndex,
+        existingItem.copyWith(quantity: updatedQuantity),
+      );
+
+      unawaited(_playSuccessBeep());
+      _showScannerMessage(
+        '${matchingItem.name} qty increased to ${CurrencyFormatter.formatQuantity(updatedQuantity)}',
       );
       return;
     }
 
-    calcNotifier.setItems([
-      ...calcState.billItems,
+    calcNotifier.addBillItem(
       BillItem(
         id: matchingItem.id.toString(),
         inventoryItemId: matchingItem.id,
@@ -125,31 +120,107 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
         quantity: 1,
         rate: matchingItem.price,
       ),
-    ]);
+    );
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    unawaited(_playSuccessBeep());
+    _showScannerMessage('${matchingItem.name} added to bill');
+  }
+
+  Future<void> _playSuccessBeep() async {
+    try {
+      await _beepPlayer.stop();
+      await _beepPlayer.play(AssetSource('sounds/scan_beep.wav'));
+    } catch (_) {}
+  }
+
+  Barcode? _pickBestBarcode(List<Barcode> barcodes) {
+    Barcode? bestBarcode;
+    double bestArea = -1;
+
+    for (final candidate in barcodes) {
+      final code = candidate.rawValue?.trim();
+      if (candidate.format == BarcodeFormat.qrCode ||
+          code == null ||
+          code.isEmpty) {
+        continue;
+      }
+
+      final area = _barcodeArea(candidate);
+      if (bestBarcode == null || area > bestArea) {
+        bestBarcode = candidate;
+        bestArea = area;
+      }
+    }
+
+    return bestBarcode;
+  }
+
+  bool _shouldAcceptBarcode({required String code, required DateTime now}) {
+    final scanLock = _scanLock;
+
+    if (scanLock == null) {
+      return true;
+    }
+
+    if (now.difference(scanLock.acceptedAt) < _minimumScanGap) {
+      if (scanLock.code == code) {
+        _scanLock = scanLock.copyWith(lastSeenAt: now);
+      }
+      return false;
+    }
+
+    if (scanLock.code != code) {
+      return true;
+    }
+
+    if (now.difference(scanLock.lastSeenAt) >= _barcodeExitThreshold) {
+      return true;
+    }
+
+    _scanLock = scanLock.copyWith(lastSeenAt: now);
+    return false;
+  }
+
+  Rect _scanWindowFor(Size size) {
+    final width = (size.width * 0.78)
+        .clamp(220.0, _maxScanWindowWidth)
+        .toDouble();
+    final height = (size.height * 0.34)
+        .clamp(120.0, _maxScanWindowHeight)
+        .toDouble();
+
+    return Rect.fromCenter(
+      center: size.center(Offset.zero),
+      width: width,
+      height: height,
+    );
+  }
+
+  double _barcodeArea(Barcode barcode) {
+    if (barcode.size.isEmpty) {
+      return 0;
+    }
+
+    return barcode.size.width * barcode.size.height;
+  }
+
+  void _showScannerMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
-        content: Text('${matchingItem.name} added to bill'),
-        duration: const Duration(milliseconds: 1200),
+        content: Text(message),
+        duration: const Duration(milliseconds: 900),
       ),
     );
   }
 
-  InventoryItemModel? _findInventoryItemByBarcode(
-    List<InventoryItemModel> items,
-    String barcode,
-  ) {
-    for (final item in items) {
-      if (item.barcode?.trim() == barcode) {
-        return item;
-      }
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final calcState = ref.watch(calculatorProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -159,115 +230,101 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
           Expanded(
             flex: 1,
             child: _supportsCamera
-                ? Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      MobileScanner(
-                        controller: _scannerController,
-                        onDetect: _onDetect,
-                        errorBuilder: (context, error, child) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(
-                                AppSizes.paddingLarge,
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.error_outline,
-                                    color: Colors.white,
-                                    size: 48,
+                ? LayoutBuilder(
+                    builder: (context, constraints) {
+                      final scanWindow = _scanWindowFor(constraints.biggest);
+
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          MobileScanner(
+                            controller: _scannerController,
+                            scanWindow: scanWindow,
+                            onDetect: _onDetect,
+                            errorBuilder: (context, error, child) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(
+                                    AppSizes.paddingLarge,
                                   ),
-                                  const SizedBox(
-                                    height: AppSizes.spacingMedium,
-                                  ),
-                                  Text(
-                                    'Camera error',
-                                    textAlign: TextAlign.center,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: AppSizes.spacingSmall),
-                                  Text(
-                                    'Check camera permission and try again.',
-                                    textAlign: TextAlign.center,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                        placeholderBuilder: (context, child) {
-                          return Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const SizedBox(
-                                  width: 100,
-                                  height: 100,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.error_outline,
+                                        color: Colors.white,
+                                        size: 48,
+                                      ),
+                                      const SizedBox(
+                                        height: AppSizes.spacingMedium,
+                                      ),
+                                      Text(
+                                        'Camera error',
+                                        textAlign: TextAlign.center,
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(color: Colors.white),
+                                      ),
+                                      const SizedBox(
+                                        height: AppSizes.spacingSmall,
+                                      ),
+                                      Text(
+                                        'Check camera permission and try again.',
+                                        textAlign: TextAlign.center,
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(color: Colors.white70),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: AppSizes.spacingMedium),
-                                Text(
-                                  'Initializing camera...',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white,
-                                  ),
+                              );
+                            },
+                            placeholderBuilder: (context, child) {
+                              return Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(
+                                      width: 100,
+                                      height: 100,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: AppSizes.spacingMedium,
+                                    ),
+                                    Text(
+                                      'Initializing camera...',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(color: Colors.white),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      IgnorePointer(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.black.withValues(alpha: 0.22),
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: 0.22),
-                              ],
-                            ),
+                              );
+                            },
                           ),
-                        ),
-                      ),
-                      IgnorePointer(
-                        child: Center(
-                          child: Container(
-                            width: 260,
-                            height: 160,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(
-                                AppSizes.radiusLarge,
+                          IgnorePointer(
+                            child: CustomPaint(
+                              painter: _ScannerOverlayPainter(
+                                scanWindow: scanWindow,
                               ),
-                              border: Border.all(color: Colors.white, width: 2),
                             ),
                           ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: AppSizes.paddingLarge,
-                        child: Text(
-                          'Align barcode inside the frame',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white,
+                          Positioned(
+                            left: AppSizes.paddingMedium,
+                            right: AppSizes.paddingMedium,
+                            bottom: AppSizes.paddingLarge,
+                            child: Text(
+                              'Align barcode fully inside the box. Move it outside the box, then bring it back to scan again.',
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   )
                 : Container(
                     color: Colors.black,
@@ -306,56 +363,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
             flex: 1,
             child: Container(
               color: theme.scaffoldBackgroundColor,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(AppSizes.paddingMedium),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Bill Items (${calcState.itemCount})',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          CurrencyFormatter.format(calcState.subtotal),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: calcState.billItems.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No items added yet',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSizes.paddingMedium,
-                            ),
-                            itemCount: calcState.billItems.length,
-                            itemBuilder: (context, index) {
-                              final item = calcState.billItems[index];
-                              return _ScannerBillItemTile(
-                                item: item,
-                                index: index,
-                                onDelete: () => ref
-                                    .read(calculatorProvider.notifier)
-                                    .removeItem(index),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
+              child: const _ScannerBillPanel(),
             ),
           ),
         ],
@@ -366,6 +374,136 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
         child: const Icon(Icons.close),
       ),
     );
+  }
+}
+
+class _ScannerBillPanel extends ConsumerWidget {
+  const _ScannerBillPanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final calcState = ref.watch(calculatorProvider);
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(AppSizes.paddingMedium),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Bill Items (${calcState.itemCount})',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                CurrencyFormatter.format(calcState.subtotal),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: calcState.billItems.isEmpty
+              ? Center(
+                  child: Text(
+                    'No items added yet',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.paddingMedium,
+                  ),
+                  itemCount: calcState.billItems.length,
+                  itemBuilder: (context, index) {
+                    final item = calcState.billItems[index];
+                    return _ScannerBillItemTile(
+                      item: item,
+                      index: index,
+                      onDelete: () => ref
+                          .read(calculatorProvider.notifier)
+                          .removeItem(index),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BarcodeScanLock {
+  const _BarcodeScanLock({
+    required this.code,
+    required this.acceptedAt,
+    required this.lastSeenAt,
+  });
+
+  final String code;
+  final DateTime acceptedAt;
+  final DateTime lastSeenAt;
+
+  _BarcodeScanLock copyWith({
+    String? code,
+    DateTime? acceptedAt,
+    DateTime? lastSeenAt,
+  }) {
+    return _BarcodeScanLock(
+      code: code ?? this.code,
+      acceptedAt: acceptedAt ?? this.acceptedAt,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+    );
+  }
+}
+
+class _ScannerOverlayPainter extends CustomPainter {
+  const _ScannerOverlayPainter({required this.scanWindow});
+
+  final Rect scanWindow;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final backgroundPath = Path()..addRect(Offset.zero & size);
+    final cutoutPath = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          scanWindow,
+          const Radius.circular(AppSizes.radiusLarge),
+        ),
+      );
+
+    final overlayPath = Path.combine(
+      PathOperation.difference,
+      backgroundPath,
+      cutoutPath,
+    );
+
+    canvas.drawPath(
+      overlayPath,
+      Paint()..color = Colors.black.withValues(alpha: 0.45),
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        scanWindow,
+        const Radius.circular(AppSizes.radiusLarge),
+      ),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = Colors.white,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScannerOverlayPainter oldDelegate) {
+    return oldDelegate.scanWindow != scanWindow;
   }
 }
 
