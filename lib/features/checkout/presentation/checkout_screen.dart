@@ -13,7 +13,6 @@ import '../../../core/widgets/common_app_bar.dart';
 import '../../calculator/domain/calc_logic.dart';
 import '../../calculator/domain/bill_item.dart';
 import '../../settings/domain/preferences_model.dart';
-import '../../customers/domain/customer_model.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -1075,8 +1074,6 @@ class _AddCustomerModalState extends ConsumerState<_AddCustomerModal> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return AlertDialog(
       title: const Text('Add New Customer'),
       contentPadding: const EdgeInsets.all(AppSizes.paddingLarge),
