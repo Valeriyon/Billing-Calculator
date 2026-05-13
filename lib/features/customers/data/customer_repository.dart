@@ -81,6 +81,8 @@ class DriftCustomerRepository implements CustomerRepository {
     return CustomerModel(
       id: row.id,
       name: row.name,
+      creditLimit: row.creditLimit,
+      creditDue: row.creditDue,
       phone: row.phone,
       address: row.address,
       ledgerId: row.ledgerId,

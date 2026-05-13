@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Supported languages in the app
@@ -58,18 +59,30 @@ class UserPreferences {
 
   /// Create preferences from SharedPreferences
   factory UserPreferences.fromPrefs(SharedPreferences prefs) {
-    return UserPreferences(
-      themeMode: AppThemeMode.fromString(
-        prefs.getString('themeMode') ?? 'light',
-      ),
-      language: AppLanguage.fromCode(prefs.getString('language') ?? 'en'),
-      textScale: prefs.getDouble('textScale') ?? 1.0,
-      contrastMode: prefs.getBool('contrastMode') ?? false,
-      hapticFeedback: prefs.getBool('hapticFeedback') ?? true,
-      creditPaymentEnabled: prefs.getBool('creditPaymentEnabled') ?? true,
-      upiPaymentEnabled: prefs.getBool('upiPaymentEnabled') ?? true,
-      upiId: prefs.getString('upiId') ?? '',
-    );
+    try {
+      final textScale = prefs.getDouble('textScale') ?? 1.0;
+      // Validate text scale is within reasonable bounds
+      final validTextScale = textScale > 0 && textScale <= 3.0
+          ? textScale
+          : 1.0;
+
+      return UserPreferences(
+        themeMode: AppThemeMode.fromString(
+          prefs.getString('themeMode') ?? 'light',
+        ),
+        language: AppLanguage.fromCode(prefs.getString('language') ?? 'en'),
+        textScale: validTextScale,
+        contrastMode: prefs.getBool('contrastMode') ?? false,
+        hapticFeedback: prefs.getBool('hapticFeedback') ?? true,
+        creditPaymentEnabled: prefs.getBool('creditPaymentEnabled') ?? true,
+        upiPaymentEnabled: prefs.getBool('upiPaymentEnabled') ?? true,
+        upiId: (prefs.getString('upiId') ?? '').trim(),
+      );
+    } catch (e) {
+      // If anything goes wrong, return defaults
+      debugPrintStack(stackTrace: StackTrace.current);
+      return const UserPreferences();
+    }
   }
 
   /// Save preferences to SharedPreferences

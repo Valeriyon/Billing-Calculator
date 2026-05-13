@@ -4,6 +4,9 @@ import '../../features/settings/domain/preferences_model.dart';
 import '../database/app_database.dart';
 import '../services/document_series_service.dart';
 
+// Global singleton to ensure database is created only once
+AppDatabase? _databaseInstance;
+
 /// Provider for SharedPreferences instance
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be overridden in main()');
@@ -11,13 +14,29 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 
 /// Provider for the database instance
 final databaseProvider = Provider<AppDatabase>((ref) {
-  return AppDatabase();
+  // Use a lazy singleton pattern to ensure only one database instance exists
+  _databaseInstance ??= AppDatabase();
+  return _databaseInstance!;
 });
 
 /// Provider for document series formatter/increment service
 final documentSeriesServiceProvider = Provider<DocumentSeriesService>((ref) {
   final database = ref.watch(databaseProvider);
   return DocumentSeriesService(database);
+});
+
+/// Provider that ensures the database is fully initialized (migrations applied).
+/// Consumers can await this provider to be sure the DB is ready.
+final databaseInitializationProvider = FutureProvider<void>((ref) async {
+  final db = ref.watch(databaseProvider);
+  // Run a lightweight query to force the lazy connection and any migrations to complete.
+  // Using getTotalItemsCount which executes a simple select.
+  try {
+    await db.getTotalItemsCount();
+  } catch (e) {
+    // Re-throw to allow callers to observe the error state
+    rethrow;
+  }
 });
 
 /// Provider for user preferences with persistence

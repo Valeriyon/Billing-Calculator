@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
@@ -33,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration {
@@ -43,27 +44,59 @@ class AppDatabase extends _$AppDatabase {
         await ensureDefaultItemSeries();
       },
       onUpgrade: (Migrator m, int from, int to) async {
+        // Helper to run migration steps safely and continue on non-fatal errors
+        Future<void> _safe(Future<void> Function() fn, String desc) async {
+          try {
+            await fn();
+          } catch (e) {
+            debugPrint('Migration step failed ($desc): $e');
+          }
+        }
+
+        // Use guarded, sequential migration steps. Each step is safe to run
+        // even if the schema already contains the target table/column.
         if (from < 2) {
-          await m.createTable(inventoryItems);
+          await _safe(() => m.createTable(inventoryItems), 'create inventoryItems');
         }
+
         if (from >= 2 && from < 3) {
-          await m.addColumn(inventoryItems, inventoryItems.barcode);
+          await _safe(() => m.addColumn(inventoryItems, inventoryItems.barcode), 'add barcode column');
         }
+
         if (from >= 3 && from < 4) {
-          await m.addColumn(inventoryItems, inventoryItems.uom);
-          await m.addColumn(inventoryItems, inventoryItems.unitValue);
+          await _safe(() => m.addColumn(inventoryItems, inventoryItems.uom), 'add uom column');
+          await _safe(() => m.addColumn(inventoryItems, inventoryItems.unitValue), 'add unitValue column');
         }
-        if (from < 5) {
-          await m.createTable(documentSeriesNumbers);
-          await ensureDefaultItemSeries();
+
+        if (from >= 4 && from < 5) {
+          await _safe(() => m.createTable(documentSeriesNumbers), 'create documentSeriesNumbers');
+          await _safe(() => ensureDefaultItemSeries(), 'ensure default item series');
         }
-        if (from < 6) {
-          await m.createTable(ledgers);
-          await m.createTable(customers);
-          await m.createTable(vouchers);
-          await m.createTable(ledgerEntries);
-          await m.addColumn(invoices, invoices.customerId);
-          await m.addColumn(invoices, invoices.paidAmount);
+
+        if (from >= 5 && from < 6) {
+          await _safe(() => m.createTable(ledgers), 'create ledgers');
+          await _safe(() => m.createTable(customers), 'create customers');
+          await _safe(() => m.createTable(vouchers), 'create vouchers');
+          await _safe(() => m.createTable(ledgerEntries), 'create ledgerEntries');
+          await _safe(() => m.addColumn(invoices, invoices.customerId), 'add invoices.customerId');
+          await _safe(() => m.addColumn(invoices, invoices.paidAmount), 'add invoices.paidAmount');
+        }
+
+        if (from >= 6 && from < 7) {
+            // Prefer explicit existence checks for customer columns to avoid
+            // duplicate-column errors on databases that already have them.
+            final customersTable = 'customers';
+            if (!await _columnExists(customersTable, 'credit_limit')) {
+              await _safe(() => m.addColumn(customers, customers.creditLimit), 'add customers.creditLimit');
+            } else {
+              debugPrint('Skipping add customers.creditLimit: column already exists');
+            }
+
+            if (!await _columnExists(customersTable, 'credit_due')) {
+              await _safe(() => m.addColumn(customers, customers.creditDue), 'add customers.creditDue');
+            } else {
+              debugPrint('Skipping add customers.creditDue: column already exists');
+            }
         }
       },
     );
@@ -300,6 +333,8 @@ class AppDatabase extends _$AppDatabase {
       return insertCustomer(
         CustomersCompanion.insert(
           name: normalizedName,
+          creditLimit: const Value(500.0),
+          creditDue: const Value(0.0),
           phone: Value(
             normalizedPhone == null || normalizedPhone.isEmpty
                 ? null
@@ -391,6 +426,26 @@ class AppDatabase extends _$AppDatabase {
       'WHERE module = ?',
       [nowMillis, normalizedModule],
     );
+  }
+
+  /// Check whether a specific column exists in a table using PRAGMA.
+  Future<bool> _columnExists(String table, String column) async {
+    try {
+      final rows = await customSelect('PRAGMA table_info("$table")').get();
+      for (final row in rows) {
+        try {
+          final name = row.readString('name');
+          if (name == column) return true;
+        } catch (_) {
+          // ignore rows that don't have the expected column
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Failed to check column existence for $table.$column: $e');
+      // If we can't determine, be conservative and return false so migration will attempt
+      return false;
+    }
   }
 }
 

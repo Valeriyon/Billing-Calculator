@@ -58,6 +58,14 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
     _beepPlayer.setPlayerMode(PlayerMode.lowLatency);
   }
 
+  void _pauseScanner() {
+    _scannerController.stop();
+  }
+
+  void _resumeScanner() {
+    _scannerController.start();
+  }
+
   @override
   void dispose() {
     _beepPlayer.dispose();
@@ -79,7 +87,11 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
 
     _scanLock = _BarcodeScanLock(code: code, acceptedAt: now, lastSeenAt: now);
 
-    final matchingItem = ref.read(inventoryBarcodeMapProvider)[code];
+    final inventoryState = ref.read(inventoryManagerProvider);
+    final matchingItem = _findInventoryItemByBarcode(
+      inventoryState.items,
+      code,
+    );
 
     if (matchingItem == null) {
       debugPrint('No inventory item found for barcode: $code');
@@ -87,8 +99,9 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
       return;
     }
 
-    final calcState = ref.read(calculatorProvider);
-    final calcNotifier = ref.read(calculatorProvider.notifier);
+    try {
+      final calcState = ref.read(calculatorProvider);
+      final calcNotifier = ref.read(calculatorProvider.notifier);
 
     final existingIndex = calcNotifier.findMatchingItemIndex(
       inventoryItemId: matchingItem.id,

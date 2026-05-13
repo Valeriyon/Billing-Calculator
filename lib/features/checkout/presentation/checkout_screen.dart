@@ -13,6 +13,7 @@ import '../../../core/widgets/common_app_bar.dart';
 import '../../calculator/domain/calc_logic.dart';
 import '../../calculator/domain/bill_item.dart';
 import '../../settings/domain/preferences_model.dart';
+import '../../customers/domain/customer_model.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -32,6 +33,48 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Handle payment mode restrictions once during initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _validatePaymentModeRestrictions();
+    });
+  }
+
+  void _validatePaymentModeRestrictions() {
+    if (!mounted) return;
+
+    final prefs = ref.read(userPreferencesProvider);
+    final creditPaymentEnabled = prefs.creditPaymentEnabled;
+    final upiPaymentEnabled = prefs.upiPaymentEnabled;
+
+    bool needsReset = false;
+
+    if (!creditPaymentEnabled && _selectedPaymentMode == PaymentMode.credit) {
+      _selectedPaymentMode = PaymentMode.cash;
+      _selectedCustomerId = null;
+      needsReset = true;
+    }
+
+    if (!upiPaymentEnabled && _selectedPaymentMode == PaymentMode.upi) {
+      _selectedPaymentMode = PaymentMode.cash;
+      _selectedCustomerId = null;
+      needsReset = true;
+    }
+
+    if (needsReset && mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void didUpdateWidget(CheckoutScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Revalidate when preferences change
+    _validatePaymentModeRestrictions();
+  }
+
+  @override
   void dispose() {
     _notesController.dispose();
     super.dispose();
@@ -44,28 +87,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final theme = Theme.of(context);
     final creditPaymentEnabled = prefs.creditPaymentEnabled;
     final upiPaymentEnabled = prefs.upiPaymentEnabled;
-
-    if (!creditPaymentEnabled && _selectedPaymentMode == PaymentMode.credit) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _selectedPaymentMode = PaymentMode.cash;
-            _selectedCustomerId = null;
-          });
-        }
-      });
-    }
-
-    if (!upiPaymentEnabled && _selectedPaymentMode == PaymentMode.upi) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _selectedPaymentMode = PaymentMode.cash;
-            _selectedCustomerId = null;
-          });
-        }
-      });
-    }
 
     if (calcState.billItems.isEmpty) {
       return Scaffold(
@@ -205,6 +226,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 _selectedPaymentMode == PaymentMode.credit) ...[
               _SectionCard(
                 title: 'Customer',
+                trailing: TextButton.icon(
+                  onPressed: () => _showAddCustomerModal(context),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
                 child: StreamBuilder<List<Customer>>(
                   stream: ref.watch(databaseProvider).watchAllCustomers(),
                   builder: (context, snapshot) {
@@ -229,7 +259,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ),
                           const SizedBox(height: AppSizes.spacingSmall),
                           TextButton.icon(
-                            onPressed: () => context.push('/customers/new'),
+                            onPressed: () => _showAddCustomerModal(context),
                             icon: const Icon(Icons.person_add_alt_1),
                             label: const Text('Add Customer'),
                           ),
@@ -243,31 +273,50 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     final selectedValue = hasSelection
                         ? _selectedCustomerId
                         : null;
+                    Customer? selectedCustomer;
+                    for (final customer in customers) {
+                      if (customer.id == selectedValue) {
+                        selectedCustomer = customer;
+                        break;
+                      }
+                    }
 
-                    return DropdownButtonFormField<int>(
-                      initialValue: selectedValue,
-                      decoration: const InputDecoration(
-                        labelText: 'Select customer *',
-                        prefixIcon: Icon(Icons.person_outline),
-                      ),
-                      items: customers
-                          .map(
-                            (customer) => DropdownMenuItem<int>(
-                              value: customer.id,
-                              child: Text(
-                                customer.phone == null ||
-                                        customer.phone!.isEmpty
-                                    ? customer.name
-                                    : '${customer.name} (${customer.phone})',
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCustomerId = value;
-                        });
-                      },
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        DropdownButtonFormField<int>(
+                          initialValue: selectedValue,
+                          decoration: const InputDecoration(
+                            labelText: 'Select customer *',
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                          items: customers
+                              .map(
+                                (customer) => DropdownMenuItem<int>(
+                                  value: customer.id,
+                                  child: Text(
+                                    customer.phone == null ||
+                                            customer.phone!.isEmpty
+                                        ? customer.name
+                                        : '${customer.name} (${customer.phone})',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedCustomerId = value;
+                            });
+                          },
+                        ),
+                        if (selectedCustomer != null) ...[
+                          const SizedBox(height: AppSizes.spacingMedium),
+                          _CustomerCreditSummary(
+                            customer: selectedCustomer,
+                            projectedPurchaseAmount: grandTotal,
+                          ),
+                        ],
+                      ],
                     );
                   },
                 ),
@@ -369,6 +418,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
+  Future<void> _showAddCustomerModal(BuildContext context) async {
+    final customerId = await showDialog<int>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return const _AddCustomerModal();
+      },
+    );
+
+    if (customerId != null && mounted) {
+      setState(() {
+        _selectedCustomerId = customerId;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Customer added and selected')),
+      );
+    }
+  }
+
   Future<void> _saveInvoice(
     List<BillItem> items,
     double subtotal,
@@ -385,54 +454,91 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
 
+    if (_selectedPaymentMode == PaymentMode.credit) {
+      final db = ref.read(databaseProvider);
+      final customer = await db.getCustomerById(_selectedCustomerId!);
+
+      if (customer == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selected customer was not found')),
+        );
+        return;
+      }
+
+      final projectedDue = customer.creditDue + grandTotal;
+      if (projectedDue > customer.creditLimit) {
+        final shouldContinue = await _confirmOverCreditLimit(
+          customer: customer,
+          projectedDue: projectedDue,
+          invoiceAmount: grandTotal,
+        );
+
+        if (!shouldContinue) {
+          return;
+        }
+      }
+    }
+
     setState(() => _isSaving = true);
 
     try {
       final db = ref.read(databaseProvider);
-      final now = DateTime.now();
+      late final String invoiceNo;
 
-      // Get next invoice number
-      final count = await db.getInvoiceCountForDate(now);
-      final invoiceNo = SerialNumberGenerator.generateInvoiceNumber(
-        now,
-        count + 1,
-      );
+      await db.transaction(() async {
+        final now = DateTime.now();
 
-      // Insert invoice
-      final invoiceId = await db.insertInvoice(
-        InvoicesCompanion.insert(
-          invoiceNo: invoiceNo,
-          subtotalAmount: Value(subtotal),
-          discountAmount: Value(discount),
-          totalAmount: Value(grandTotal),
-          paymentMode: _selectedPaymentMode,
-          paymentStatus: _selectedPaymentMode == PaymentMode.credit
-              ? PaymentStatus.pending
-              : PaymentStatus.fulfilled,
-          customerId: Value(
-            _selectedPaymentMode == PaymentMode.credit
-                ? _selectedCustomerId
-                : null,
+        final count = await db.getInvoiceCountForDate(now);
+        invoiceNo = SerialNumberGenerator.generateInvoiceNumber(now, count + 1);
+
+        final invoiceId = await db.insertInvoice(
+          InvoicesCompanion.insert(
+            invoiceNo: invoiceNo,
+            subtotalAmount: Value(subtotal),
+            discountAmount: Value(discount),
+            totalAmount: Value(grandTotal),
+            paymentMode: _selectedPaymentMode,
+            paymentStatus: _selectedPaymentMode == PaymentMode.credit
+                ? PaymentStatus.pending
+                : PaymentStatus.fulfilled,
+            customerId: Value(
+              _selectedPaymentMode == PaymentMode.credit
+                  ? _selectedCustomerId
+                  : null,
+            ),
+            notes: Value(
+              _notesController.text.isEmpty ? null : _notesController.text,
+            ),
           ),
-          notes: Value(
-            _notesController.text.isEmpty ? null : _notesController.text,
-          ),
-        ),
-      );
-
-      // Insert invoice items
-      final invoiceItems = items.asMap().entries.map((entry) {
-        return InvoiceItemsCompanion.insert(
-          invoiceId: invoiceId,
-          itemName: entry.value.name,
-          quantity: entry.value.quantity,
-          rate: entry.value.rate,
-          total: entry.value.total,
-          serialNo: Value(entry.key + 1),
         );
-      }).toList();
 
-      await db.insertInvoiceItems(invoiceItems);
+        final invoiceItems = items.asMap().entries.map((entry) {
+          return InvoiceItemsCompanion.insert(
+            invoiceId: invoiceId,
+            itemName: entry.value.name,
+            quantity: entry.value.quantity,
+            rate: entry.value.rate,
+            total: entry.value.total,
+            serialNo: Value(entry.key + 1),
+          );
+        }).toList();
+
+        await db.insertInvoiceItems(invoiceItems);
+
+        if (_selectedPaymentMode == PaymentMode.credit) {
+          final customer = await db.getCustomerById(_selectedCustomerId!);
+          if (customer == null) {
+            throw StateError('Selected customer was not found');
+          }
+
+          final didUpdate = await db.updateCustomer(
+            customer.copyWith(creditDue: customer.creditDue + grandTotal),
+          );
+          if (!didUpdate) {
+            throw StateError('Unable to update customer credit balance');
+          }
+        }
+      });
 
       // Clear the calculator
       ref.read(calculatorProvider.notifier).clearBill();
@@ -463,6 +569,43 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  Future<bool> _confirmOverCreditLimit({
+    required Customer customer,
+    required double projectedDue,
+    required double invoiceAmount,
+  }) async {
+    final overBy = projectedDue - customer.creditLimit;
+    final shouldContinue = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Credit limit exceeded'),
+          content: Text(
+            '${customer.name} will exceed the credit limit by ${CurrencyFormatter.format(overBy)}.\n\n'
+            'Current due: ${CurrencyFormatter.format(customer.creditDue)}\n'
+            'This bill: ${CurrencyFormatter.format(invoiceAmount)}\n'
+            'Projected due: ${CurrencyFormatter.format(projectedDue)}\n'
+            'Limit: ${CurrencyFormatter.format(customer.creditLimit)}\n\n'
+            'Continue anyway?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return shouldContinue == true;
   }
 
   Future<void> _handleConfirmAndSave(
@@ -509,6 +652,84 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   bool _isValidUpiId(String value) {
     return value.contains('@') && value.length >= 5;
+  }
+}
+
+class _CustomerCreditSummary extends StatelessWidget {
+  const _CustomerCreditSummary({
+    required this.customer,
+    required this.projectedPurchaseAmount,
+  });
+
+  final Customer customer;
+  final double projectedPurchaseAmount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dueAfterBill = customer.creditDue + projectedPurchaseAmount;
+    final remainingAfterBill = customer.creditLimit - dueAfterBill;
+    final isOverLimit = dueAfterBill > customer.creditLimit;
+    final isLow =
+        !isOverLimit && remainingAfterBill <= (customer.creditLimit * 0.2);
+    final warningColor = isOverLimit
+        ? AppColors.error
+        : isLow
+        ? Colors.orange.shade700
+        : AppColors.success;
+    final warningText = isOverLimit
+        ? 'Credit limit exceeded'
+        : isLow
+        ? 'Credit limit is running low'
+        : null;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.paddingMedium),
+      decoration: BoxDecoration(
+        color: warningColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        border: Border.all(color: warningColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Current due: ${CurrencyFormatter.format(customer.creditDue)}',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSizes.spacingSmall),
+          Text(
+            'Credit limit: ${CurrencyFormatter.format(customer.creditLimit)}',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSizes.spacingSmall),
+          Text(
+            'After this bill: ${CurrencyFormatter.format(dueAfterBill)}',
+            style: theme.textTheme.bodyMedium,
+          ),
+          if (warningText != null) ...[
+            const SizedBox(height: AppSizes.spacingSmall),
+            Text(
+              warningText,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: warningColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (isOverLimit) ...[
+            const SizedBox(height: AppSizes.spacingSmall),
+            Text(
+              'Over by ${CurrencyFormatter.format(dueAfterBill - customer.creditLimit)}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: warningColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -770,6 +991,172 @@ class _SummaryRow extends StatelessWidget {
                   color: valueColor,
                   fontWeight: FontWeight.w600,
                 ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddCustomerModal extends ConsumerStatefulWidget {
+  const _AddCustomerModal();
+
+  @override
+  ConsumerState<_AddCustomerModal> createState() => _AddCustomerModalState();
+}
+
+class _AddCustomerModalState extends ConsumerState<_AddCustomerModal> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _addressController;
+  final _formKey = GlobalKey<FormState>();
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+    _phoneController = TextEditingController();
+    _addressController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSave() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    try {
+      setState(() {
+        _isSaving = true;
+      });
+
+      final db = ref.read(databaseProvider);
+      final customerId = await db.createCustomerWithLedger(
+        customerName: _nameController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
+        address: _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop(customerId);
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error adding customer: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: const Text('Add New Customer'),
+      contentPadding: const EdgeInsets.all(AppSizes.paddingLarge),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Customer Name *',
+                  hintText: 'Enter customer name',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                validator: (value) {
+                  if ((value ?? '').trim().isEmpty) {
+                    return 'Customer name is required';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSizes.spacingMedium),
+              TextFormField(
+                controller: _phoneController,
+                textInputAction: TextInputAction.next,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone',
+                  hintText: 'Enter phone number',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                validator: (value) {
+                  final raw = (value ?? '').trim();
+                  if (raw.isEmpty) {
+                    return null;
+                  }
+
+                  final onlyDigits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+                  if (onlyDigits.length < 7 || onlyDigits.length > 15) {
+                    return 'Enter a valid phone number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSizes.spacingMedium),
+              TextFormField(
+                controller: _addressController,
+                textInputAction: TextInputAction.done,
+                keyboardType: TextInputType.streetAddress,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Address',
+                  hintText: 'Enter address',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
+          onPressed: _isSaving ? null : _handleSave,
+          icon: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.save),
+          label: const Text('Save'),
         ),
       ],
     );
