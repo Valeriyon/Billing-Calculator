@@ -1,3 +1,5 @@
+import 'package:billing_app_pos/core/constants/app_images.dart';
+import 'package:billing_app_pos/core/constants/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -42,16 +44,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _controller.forward();
 
     // Await DB initialization. Using the provider's future is safe in initState.
-    ref.read(databaseInitializationProvider.future).then((_) {
-      // Small delay so the animation can finish smoothly
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) context.go('/');
-      });
-    }).catchError((error) {
-      // If DB fails to initialize, stay on splash and log the error.
-      // You can extend this to show an error UI.
-      debugPrint('Database initialization failed: $error');
-    });
+    ref
+        .read(databaseInitializationProvider.future)
+        .then((_) {
+          // Small delay so the animation can finish smoothly
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) context.go('/');
+          });
+        })
+        .catchError((error) {
+          // If DB fails to initialize, stay on splash and log the error.
+          // You can extend this to show an error UI.
+          debugPrint('Database initialization failed: $error');
+        });
   }
 
   @override
@@ -90,17 +95,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.point_of_sale,
-                        size: 64,
-                        color: AppColors.primary,
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Image.asset(AppImages.logo, fit: BoxFit.contain),
                       ),
                     ),
                     const SizedBox(height: AppSizes.spacingXLarge),
 
                     // App Name
-                    const Text(
-                      'Store Billing',
+                    Text(
+                      AppStrings.appName,
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -112,7 +116,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                     // Tagline
                     Text(
-                      'Simple • Fast • Reliable',
+                      AppStrings.appTagline,
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.white.withValues(alpha: 0.8),
