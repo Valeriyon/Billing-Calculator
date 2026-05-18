@@ -196,3 +196,17 @@ final customerByIdProvider = FutureProvider.family<CustomerModel?, int>((
 ) {
   return ref.watch(customerRepositoryProvider).getCustomerById(id);
 });
+
+final customerCreditsProvider =
+    FutureProvider.family<List<CustomerCreditEntry>, int>((ref, customerId) {
+      return ref
+          .watch(customerRepositoryProvider)
+          .getCreditsForCustomer(customerId);
+    });
+
+final customerCollectionsProvider =
+    FutureProvider.family<List<CustomerCollectionEntry>, int>((ref, customerId) {
+      return ref
+          .watch(customerRepositoryProvider)
+          .getCollectionsForCustomer(customerId);
+    });

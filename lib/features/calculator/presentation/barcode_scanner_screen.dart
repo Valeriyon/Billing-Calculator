@@ -10,6 +10,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/utils/currency_format.dart';
+import '../../../core/widgets/confirmation_dialog.dart';
 import '../domain/calc_logic.dart';
 import '../domain/bill_item.dart';
 import '../../inventory/presentation/providers/inventory_providers.dart';
@@ -79,6 +80,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
 
     _scanLock = _BarcodeScanLock(code: code, acceptedAt: now, lastSeenAt: now);
 
+    ref.read(inventoryManagerProvider);
     final matchingItem = ref.read(inventoryBarcodeMapProvider)[code];
 
     if (matchingItem == null) {
@@ -567,7 +569,21 @@ class _ScannerBillItemTile extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             IconButton(
-              onPressed: onDelete,
+              onPressed: () async {
+                final shouldDelete = await showConfirmationDialog(
+                  context,
+                  title: 'Delete item',
+                  message: 'Remove "${item.name}" from the current bill?',
+                  confirmLabel: 'Delete',
+                  isDestructive: true,
+                );
+
+                if (!shouldDelete || !context.mounted) {
+                  return;
+                }
+
+                onDelete();
+              },
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Remove item',
               color: AppColors.error,

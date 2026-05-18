@@ -8,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../core/widgets/common_app_bar.dart';
+import '../../../core/widgets/confirmation_dialog.dart';
 import '../domain/inventory_item_model.dart';
 import 'providers/inventory_providers.dart';
 
@@ -69,35 +70,34 @@ class _ManageItemsScreenState extends ConsumerState<ManageItemsScreen> {
                 AppSizes.paddingSmall,
               ),
               child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: notifier.setSearchQuery,
-                          decoration: InputDecoration(
-                            hintText: 'Search items...',
-                            prefixIcon: const Icon(Icons.search),
-                            suffixIcon: state.searchQuery.isNotEmpty
-                                ? IconButton(
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      notifier.setSearchQuery('');
-                                    },
-                                    icon: const Icon(Icons.close),
-                                  )
-                                : null,
-                          ),
-                        ),
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: notifier.setSearchQuery,
+                      decoration: InputDecoration(
+                        hintText: 'Search items...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: state.searchQuery.isNotEmpty
+                            ? IconButton(
+                                onPressed: () {
+                                  _searchController.clear();
+                                  notifier.setSearchQuery('');
+                                },
+                                icon: const Icon(Icons.close),
+                              )
+                            : null,
                       ),
-                      const SizedBox(width: AppSizes.spacingSmall),
-                      IconButton.filledTonal(
-                        onPressed: () => _showFilterSheet(context),
-                        tooltip: 'Filter and sort',
-                        icon: const Icon(Icons.filter_alt_outlined),
-                      ),
-                    ],
-                  )
-
+                    ),
+                  ),
+                  const SizedBox(width: AppSizes.spacingSmall),
+                  IconButton.filledTonal(
+                    onPressed: () => _showFilterSheet(context),
+                    tooltip: 'Filter and sort',
+                    icon: const Icon(Icons.filter_alt_outlined),
+                  ),
+                ],
+              ),
             ),
             if (state.errorMessage != null)
               Padding(
@@ -119,34 +119,33 @@ class _ManageItemsScreenState extends ConsumerState<ManageItemsScreen> {
               child: state.isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : state.filteredItems.isEmpty
-                      ? _EmptyInventory(
-                          hasFilter:
-                              state.searchQuery.isNotEmpty ||
-                              state.selectedCategories.isNotEmpty ||
-                              state.selectedBrands.isNotEmpty,
-                        )
-                      : RefreshIndicator(
-                          onRefresh: () async {},
-                          child: ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSizes.paddingLarge,
-                              0,
-                              AppSizes.paddingLarge,
-                              AppSizes.paddingLarge,
-                            ),
-                            itemCount: state.filteredItems.length,
-                            itemBuilder: (context, index) {
-                              final item = state.filteredItems[index];
-                              return _InventoryItemTile(
-                                item: item,
-                                onEdit: () => context.push(
-                                  '/inventory/edit/${item.id}',
-                                ),
-                                onDelete: () => _confirmDelete(item.id, item.name),
-                              );
-                            },
-                          ),
+                  ? _EmptyInventory(
+                      hasFilter:
+                          state.searchQuery.isNotEmpty ||
+                          state.selectedCategories.isNotEmpty ||
+                          state.selectedBrands.isNotEmpty,
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () async {},
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSizes.paddingLarge,
+                          0,
+                          AppSizes.paddingLarge,
+                          AppSizes.paddingLarge,
                         ),
+                        itemCount: state.filteredItems.length,
+                        itemBuilder: (context, index) {
+                          final item = state.filteredItems[index];
+                          return _InventoryItemTile(
+                            item: item,
+                            onEdit: () =>
+                                context.push('/inventory/edit/${item.id}'),
+                            onDelete: () => _confirmDelete(item.id, item.name),
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),
@@ -188,7 +187,9 @@ class _ManageItemsScreenState extends ConsumerState<ManageItemsScreen> {
     }
 
     final messenger = ScaffoldMessenger.of(context);
-    final error = await ref.read(inventoryManagerProvider.notifier).deleteItem(id);
+    final error = await ref
+        .read(inventoryManagerProvider.notifier)
+        .deleteItem(id);
     if (!mounted) {
       return;
     }
@@ -296,7 +297,7 @@ class _MobileLayout extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSizes.spacingMedium),
-        
+
         // Price and quantity
         Container(
           padding: const EdgeInsets.all(AppSizes.paddingSmall),
@@ -310,10 +311,7 @@ class _MobileLayout extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Price',
-                    style: theme.textTheme.labelSmall,
-                  ),
+                  Text('Price', style: theme.textTheme.labelSmall),
                   Text(
                     CurrencyFormatter.format(item.price),
                     style: theme.textTheme.titleSmall?.copyWith(
@@ -325,10 +323,7 @@ class _MobileLayout extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    'Quantity',
-                    style: theme.textTheme.labelSmall,
-                  ),
+                  Text('Quantity', style: theme.textTheme.labelSmall),
                   Text(
                     '${item.unitValue} ${item.uom.label}',
                     style: theme.textTheme.titleSmall?.copyWith(
@@ -341,26 +336,19 @@ class _MobileLayout extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSizes.spacingSmall),
-        
+
         // Category and Brand
         Row(
           children: [
             Expanded(
-              child: _InfoChip(
-                label: 'Category',
-                value: item.category,
-              ),
+              child: _InfoChip(label: 'Category', value: item.category),
             ),
             const SizedBox(width: AppSizes.spacingSmall),
             Expanded(
-              child: _InfoChip(
-                label: 'Brand',
-                value: item.brand,
-              ),
+              child: _InfoChip(label: 'Brand', value: item.brand),
             ),
           ],
         ),
-
       ],
     );
   }
@@ -411,10 +399,7 @@ class _DesktopLayout extends StatelessWidget {
                 children: [
                   _StatusChip(status: item.status),
                   const SizedBox(width: AppSizes.spacingSmall),
-                  Text(
-                    'Code: ${item.code}',
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  Text('Code: ${item.code}', style: theme.textTheme.bodySmall),
                 ],
               ),
             ],
@@ -427,10 +412,7 @@ class _DesktopLayout extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.label,
-    required this.value,
-  });
+  const _InfoChip({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -475,10 +457,7 @@ class _InfoChip extends StatelessWidget {
 }
 
 class _ItemMenu extends StatelessWidget {
-  const _ItemMenu({
-    required this.onEdit,
-    required this.onDelete,
-  });
+  const _ItemMenu({required this.onEdit, required this.onDelete});
 
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -495,14 +474,8 @@ class _ItemMenu extends StatelessWidget {
         }
       },
       itemBuilder: (context) => const [
-        PopupMenuItem<String>(
-          value: 'edit',
-          child: Text('Edit'),
-        ),
-        PopupMenuItem<String>(
-          value: 'delete',
-          child: Text('Delete'),
-        ),
+        PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
+        PopupMenuItem<String>(value: 'delete', child: Text('Delete')),
       ],
     );
   }
@@ -559,8 +532,9 @@ class _ItemImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imagePath = path?.trim();
-    final file =
-        imagePath != null && imagePath.isNotEmpty ? File(imagePath) : null;
+    final file = imagePath != null && imagePath.isNotEmpty
+        ? File(imagePath)
+        : null;
     final hasImage = file != null && file.existsSync();
 
     return ClipRRect(
@@ -624,6 +598,10 @@ class _InventoryFilterSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(inventoryManagerProvider);
     final notifier = ref.read(inventoryManagerProvider.notifier);
+    final hasActiveFilters =
+        state.selectedCategories.isNotEmpty ||
+        state.selectedBrands.isNotEmpty ||
+        state.sortOrder != InventorySortOrder.nameAZ;
 
     return SafeArea(
       child: Padding(
@@ -700,9 +678,7 @@ class _InventoryFilterSheet extends ConsumerWidget {
               const SizedBox(height: AppSizes.spacingSmall),
               DropdownButtonFormField<InventorySortOrder>(
                 initialValue: state.sortOrder,
-                decoration: const InputDecoration(
-                  labelText: 'Sort order',
-                ),
+                decoration: const InputDecoration(labelText: 'Sort order'),
                 items: const [
                   DropdownMenuItem(
                     value: InventorySortOrder.nameAZ,
@@ -732,7 +708,24 @@ class _InventoryFilterSheet extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: notifier.clearFilters,
+                      onPressed: hasActiveFilters
+                          ? () async {
+                              final shouldClear = await showConfirmationDialog(
+                                context,
+                                title: 'Clear all filters',
+                                message:
+                                    'Reset category, brand, and sort filters?',
+                                confirmLabel: 'Clear All',
+                                isDestructive: true,
+                              );
+
+                              if (!shouldClear || !context.mounted) {
+                                return;
+                              }
+
+                              notifier.clearFilters();
+                            }
+                          : null,
                       child: const Text('Clear All'),
                     ),
                   ),

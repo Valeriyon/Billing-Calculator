@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/providers/app_providers.dart';
 
 /// Splash screen with app logo and fade animation
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -39,11 +41,16 @@ class _SplashScreenState extends State<SplashScreen>
     // Start animation
     _controller.forward();
 
-    // Navigate after delay
-    Future.delayed(const Duration(milliseconds: 2000), () {
-      if (mounted) {
-        context.go('/');
-      }
+    // Await DB initialization. Using the provider's future is safe in initState.
+    ref.read(databaseInitializationProvider.future).then((_) {
+      // Small delay so the animation can finish smoothly
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) context.go('/');
+      });
+    }).catchError((error) {
+      // If DB fails to initialize, stay on splash and log the error.
+      // You can extend this to show an error UI.
+      debugPrint('Database initialization failed: $error');
     });
   }
 

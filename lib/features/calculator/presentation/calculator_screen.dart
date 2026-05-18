@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../core/widgets/common_app_bar.dart';
+import '../../../core/widgets/confirmation_dialog.dart';
 import '../domain/calc_logic.dart';
 import '../domain/bill_item.dart';
 import '../../inventory/domain/inventory_item_model.dart';
@@ -26,6 +29,7 @@ class CalculatorScreen extends ConsumerStatefulWidget {
 class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   late final PageController _pageController;
   late final TextEditingController _searchController;
+  bool _isShowingExitDialog = false;
 
   @override
   void initState() {
@@ -47,66 +51,76 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     final inventoryState = ref.watch(inventoryManagerProvider);
     final inventoryNotifier = ref.read(inventoryManagerProvider.notifier);
 
-    return Scaffold(
-      appBar: CommonAppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        title: const SizedBox.shrink(),
-        actions: [
-          // Checkout button with total in app bar
-          _AppBarCheckoutButton(
-            itemCount: calcState.itemCount,
-            totalAmount: calcState.subtotal,
-            onPressed: calcState.billItems.isEmpty
-                ? null
-                : () => context.push('/checkout'),
-          ),
-        ],
-      ),
-      drawer: const AppDrawer(),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final availableHeight = constraints.maxHeight;
-            // Don't show items section if height <= 600dp
-            final showItems = availableHeight > 600;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          return;
+        }
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Responsive items section - only show on larger screens
-                if (showItems)
-                  _ItemsSection(
-                    items: calcState.billItems,
-                    onViewAll: () => _showAllItemsModal(context),
-                    onDeleteItem: (index) {
-                      ref.read(calculatorProvider.notifier).removeItem(index);
-                    },
+        _confirmAndExitApp();
+      },
+      child: Scaffold(
+        appBar: CommonAppBar(
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
+          title: const SizedBox.shrink(),
+          actions: [
+            // Checkout button with total in app bar
+            _AppBarCheckoutButton(
+              itemCount: calcState.itemCount,
+              totalAmount: calcState.subtotal,
+              onPressed: calcState.billItems.isEmpty
+                  ? null
+                  : () => context.push('/checkout'),
+            ),
+          ],
+        ),
+        drawer: const AppDrawer(),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final availableHeight = constraints.maxHeight;
+              // Don't show items section if height <= 600dp
+              final showItems = availableHeight > 600;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Responsive items section - only show on larger screens
+                  if (showItems)
+                    _ItemsSection(
+                      items: calcState.billItems,
+                      onViewAll: () => _showAllItemsModal(context),
+                      onDeleteItem: (index) {
+                        ref.read(calculatorProvider.notifier).removeItem(index);
+                      },
+                    ),
+                  // Expandable middle section with calculator/inventory
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      children: [
+                        _CalculatorPage(),
+                        _InventoryBrowserPage(
+                          state: inventoryState,
+                          onSearchChanged: inventoryNotifier.setSearchQuery,
+                          searchController: _searchController,
+                          onOpenFilters: () => _showInventoryFilters(context),
+                          onOpenScanner: () => context.push('/scanner'),
+                          onItemTap: (item) => _showAddItemModal(context, item),
+                        ),
+                      ],
+                    ),
                   ),
-                // Expandable middle section with calculator/inventory
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    children: [
-                      _CalculatorPage(),
-                      _InventoryBrowserPage(
-                        state: inventoryState,
-                        onSearchChanged: inventoryNotifier.setSearchQuery,
-                        searchController: _searchController,
-                        onOpenFilters: () => _showInventoryFilters(context),
-                        onOpenScanner: () => context.push('/scanner'),
-                        onItemTap: (item) => _showAddItemModal(context, item),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -148,19 +162,52 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
               rate: item.price,
             );
 
-            notifier.addBillItem(newItem);
+            final mergedIntoExisting = notifier.addBillItem(newItem);
 
             if (!mounted) {
               return;
             }
 
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${item.name} added to cart')),
+              SnackBar(
+                content: Text(
+                  mergedIntoExisting
+                      ? '${item.name} quantity updated in cart'
+                      : '${item.name} added to cart',
+                ),
+              ),
             );
           },
         );
       },
     );
+  }
+
+  Future<void> _confirmAndExitApp() async {
+    if (_isShowingExitDialog) {
+      return;
+    }
+
+    _isShowingExitDialog = true;
+    final shouldExit = await showConfirmationDialog(
+      context,
+      title: 'Exit app',
+      message: 'Are you sure you want to exit the app?',
+      confirmLabel: 'Exit',
+      isDestructive: true,
+    );
+    _isShowingExitDialog = false;
+
+    if (!shouldExit || !mounted) {
+      return;
+    }
+
+    if (Platform.isAndroid) {
+      await SystemNavigator.pop();
+      return;
+    }
+
+    await ServicesBinding.instance.exitApplication(ui.AppExitType.required);
   }
 }
 
@@ -1005,6 +1052,10 @@ class _InventoryFilterSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(inventoryManagerProvider);
     final notifier = ref.read(inventoryManagerProvider.notifier);
+    final hasActiveFilters =
+        state.selectedCategories.isNotEmpty ||
+        state.selectedBrands.isNotEmpty ||
+        state.sortOrder != InventorySortOrder.nameAZ;
 
     return SafeArea(
       child: Padding(
@@ -1106,7 +1157,24 @@ class _InventoryFilterSheet extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: notifier.clearFilters,
+                      onPressed: hasActiveFilters
+                          ? () async {
+                              final shouldClear = await showConfirmationDialog(
+                                context,
+                                title: 'Clear all filters',
+                                message:
+                                    'Reset category, brand, and sort filters?',
+                                confirmLabel: 'Clear All',
+                                isDestructive: true,
+                              );
+
+                              if (!shouldClear || !context.mounted) {
+                                return;
+                              }
+
+                              notifier.clearFilters();
+                            }
+                          : null,
                       child: const Text('Clear All'),
                     ),
                   ),

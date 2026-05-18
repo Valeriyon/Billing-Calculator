@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/calculator/presentation/calculator_screen.dart';
@@ -9,10 +10,14 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/inventory/presentation/manage_items_screen.dart';
 import '../../features/inventory/presentation/item_form_screen.dart';
 import '../../features/customers/presentation/manage_customers_screen.dart';
+import '../../features/customers/presentation/customer_detail_screen.dart';
 import '../../features/customers/presentation/customer_form_screen.dart';
 
 /// App router configuration using go_router
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final appRouter = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/splash',
   routes: [
     // Splash Screen
@@ -102,6 +107,18 @@ final appRouter = GoRouter(
           return const ManageCustomersScreen();
         }
         return CustomerFormScreen(customerId: id);
+      },
+    ),
+
+    GoRoute(
+      path: '/customers/:id',
+      builder: (context, state) {
+        final idStr = state.pathParameters['id'] ?? '0';
+        final id = int.tryParse(idStr);
+        if (id == null) {
+          return const ManageCustomersScreen();
+        }
+        return CustomerDetailScreen(customerId: id);
       },
     ),
   ],

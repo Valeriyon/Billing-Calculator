@@ -177,11 +177,29 @@ class CalculatorNotifier extends StateNotifier<CalculatorState> {
   }
 
   /// Append a prepared bill item to the bill.
-  void addBillItem(BillItem item) {
+  /// Returns true when the item was merged into an existing line.
+  bool addBillItem(BillItem item) {
+    final existingIndex = findMatchingItemIndex(
+      inventoryItemId: item.inventoryItemId,
+      barcode: item.barcode,
+    );
+
+    if (existingIndex != -1) {
+      final existingItem = state.billItems[existingIndex];
+      final mergedItem = existingItem.copyWith(
+        quantity: existingItem.quantity + item.quantity,
+      );
+      final newItems = List<BillItem>.from(state.billItems);
+      newItems[existingIndex] = mergedItem;
+      state = state.copyWith(billItems: newItems);
+      return true;
+    }
+
     state = state.copyWith(
       billItems: [...state.billItems, item],
       itemCounter: state.itemCounter + 1,
     );
+    return false;
   }
 
   /// Remove item from bill by index
@@ -201,6 +219,7 @@ class CalculatorNotifier extends StateNotifier<CalculatorState> {
   /// Update item at index
   void updateItem(int index, BillItem updatedItem) {
     if (index < 0 || index >= state.billItems.length) return;
+    if (updatedItem.quantity <= 0 || updatedItem.rate <= 0) return;
 
     final newItems = List<BillItem>.from(state.billItems);
     newItems[index] = updatedItem;

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/currency_format.dart';
+import '../../../../core/widgets/confirmation_dialog.dart';
 import '../../domain/bill_item.dart';
 import '../../domain/calc_logic.dart';
 
@@ -63,7 +64,19 @@ class _AllItemsModalState extends ConsumerState<AllItemsModal> {
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.error,
                     ),
-                    onPressed: () {
+                    onPressed: () async {
+                      final shouldClear = await showConfirmationDialog(
+                        context,
+                        title: 'Clear all items',
+                        message: 'Remove every item from the current bill?',
+                        confirmLabel: 'Clear All',
+                        isDestructive: true,
+                      );
+
+                      if (!shouldClear || !context.mounted) {
+                        return;
+                      }
+
                       ref.read(calculatorProvider.notifier).clearBill();
                       Navigator.pop(context);
                     },
@@ -117,6 +130,8 @@ class _AllItemsModalState extends ConsumerState<AllItemsModal> {
                               .read(calculatorProvider.notifier)
                               .removeItem(index);
                         },
+                        onConfirmDelete: () =>
+                            _confirmDeleteItem(context, item),
                         onEdit: () => _showEditDialog(context, item, index),
                       );
                     },
@@ -164,60 +179,98 @@ class _AllItemsModalState extends ConsumerState<AllItemsModal> {
     final rateController = TextEditingController(
       text: item.rate.toStringAsFixed(2),
     );
+    String? errorText;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit ${item.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: qtyController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Edit ${item.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: qtyController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Quantity',
+                  prefixIcon: Icon(Icons.numbers),
+                ),
               ),
-              decoration: const InputDecoration(
-                labelText: 'Quantity',
-                prefixIcon: Icon(Icons.numbers),
+              const SizedBox(height: AppSizes.spacingMedium),
+              TextField(
+                controller: rateController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Rate',
+                  prefixIcon: Icon(Icons.currency_rupee),
+                ),
               ),
+              if (errorText != null) ...[
+                const SizedBox(height: AppSizes.spacingMedium),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    errorText!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.error,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: AppSizes.spacingMedium),
-            TextField(
-              controller: rateController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Rate',
-                prefixIcon: Icon(Icons.currency_rupee),
-              ),
+            ElevatedButton(
+              onPressed: () {
+                final newQty = double.tryParse(qtyController.text.trim());
+                final newRate = double.tryParse(rateController.text.trim());
+
+                if (newQty == null || newQty <= 0) {
+                  setDialogState(() {
+                    errorText = 'Quantity must be greater than 0';
+                  });
+                  return;
+                }
+
+                if (newRate == null || newRate <= 0) {
+                  setDialogState(() {
+                    errorText = 'Rate must be greater than 0';
+                  });
+                  return;
+                }
+
+                ref
+                    .read(calculatorProvider.notifier)
+                    .updateItem(
+                      index,
+                      item.copyWith(quantity: newQty, rate: newRate),
+                    );
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final newQty =
-                  double.tryParse(qtyController.text) ?? item.quantity;
-              final newRate = double.tryParse(rateController.text) ?? item.rate;
-
-              ref
-                  .read(calculatorProvider.notifier)
-                  .updateItem(
-                    index,
-                    item.copyWith(quantity: newQty, rate: newRate),
-                  );
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
+    );
+  }
+
+  Future<bool> _confirmDeleteItem(BuildContext context, BillItem item) {
+    return showConfirmationDialog(
+      context,
+      title: 'Delete item',
+      message: 'Remove "${item.name}" from the current bill?',
+      confirmLabel: 'Delete',
+      isDestructive: true,
     );
   }
 }
@@ -227,12 +280,14 @@ class _EditableItemTile extends StatelessWidget {
     required this.item,
     required this.index,
     required this.onDelete,
+    required this.onConfirmDelete,
     required this.onEdit,
   });
 
   final BillItem item;
   final int index;
   final VoidCallback onDelete;
+  final Future<bool> Function() onConfirmDelete;
   final VoidCallback onEdit;
 
   @override
@@ -242,6 +297,7 @@ class _EditableItemTile extends StatelessWidget {
     return Dismissible(
       key: Key(item.id),
       direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => onConfirmDelete(),
       onDismissed: (_) => onDelete(),
       background: Container(
         alignment: Alignment.centerRight,
@@ -288,6 +344,17 @@ class _EditableItemTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 20),
+              onPressed: () async {
+                final shouldDelete = await onConfirmDelete();
+                if (shouldDelete) {
+                  onDelete();
+                }
+              },
+              tooltip: 'Delete',
+              color: AppColors.error,
+            ),
             IconButton(
               icon: const Icon(Icons.edit_outlined, size: 20),
               onPressed: onEdit,

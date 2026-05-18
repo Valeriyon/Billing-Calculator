@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/utils/currency_format.dart';
 import '../../../core/widgets/common_app_bar.dart';
 import '../domain/customer_model.dart';
 import 'providers/customer_providers.dart';
@@ -163,10 +164,7 @@ class _ManageCustomersScreenState extends ConsumerState<ManageCustomersScreen> {
                         final customer = state.filteredCustomers[index];
                         return _CustomerTile(
                           customer: customer,
-                          onEdit: () =>
-                              context.push('/customers/edit/${customer.id}'),
-                          onDelete: () =>
-                              _confirmDelete(customer.id, customer.name),
+                          onTap: () => context.push('/customers/${customer.id}'),
                         );
                       },
                     ),
@@ -176,94 +174,53 @@ class _ManageCustomersScreenState extends ConsumerState<ManageCustomersScreen> {
       ),
     );
   }
-
-  Future<void> _confirmDelete(int id, String name) async {
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Delete customer'),
-          content: Text('Delete "$name"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldDelete != true || !mounted) {
-      return;
-    }
-
-    final messenger = ScaffoldMessenger.of(context);
-    final error = await ref
-        .read(customerManagerProvider.notifier)
-        .deleteCustomer(id);
-
-    if (!mounted) {
-      return;
-    }
-
-    messenger.showSnackBar(
-      SnackBar(content: Text(error ?? 'Customer deleted successfully')),
-    );
-  }
 }
 
 class _CustomerTile extends StatelessWidget {
   const _CustomerTile({
     required this.customer,
-    required this.onEdit,
-    required this.onDelete,
+    required this.onTap,
   });
 
   final CustomerModel customer;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final subtitleParts = <String>[];
-    if ((customer.phone ?? '').isNotEmpty) {
-      subtitleParts.add(customer.phone!);
-    }
-    if ((customer.address ?? '').isNotEmpty) {
-      subtitleParts.add(customer.address!);
-    }
+    final theme = Theme.of(context);
+    final dueColor = customer.creditDue > 0
+        ? AppColors.warning
+        : theme.textTheme.bodySmall?.color;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSizes.spacingMedium),
       child: ListTile(
         title: Text(customer.name),
-        subtitle: subtitleParts.isEmpty
-            ? null
-            : Text(subtitleParts.join(' • ')),
+        subtitle: Text(
+          (customer.phone ?? '').isEmpty ? 'No contact number' : customer.phone!,
+        ),
         leading: CircleAvatar(
           child: Text(
             customer.name.isEmpty ? '?' : customer.name.substring(0, 1),
           ),
         ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'edit') {
-              onEdit();
-            } else {
-              onDelete();
-            }
-          },
-          itemBuilder: (context) => const [
-            PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
-            PopupMenuItem<String>(value: 'delete', child: Text('Delete')),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              CurrencyFormatter.format(customer.creditDue),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: dueColor,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text('Due', style: theme.textTheme.bodySmall),
           ],
         ),
-        onTap: onEdit,
+        onTap: onTap,
       ),
     );
   }

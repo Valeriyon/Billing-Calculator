@@ -1,8 +1,12 @@
+import '../../../core/database/tables/invoices.dart';
+
 /// App-level customer entity used by UI and state management.
 class CustomerModel {
   const CustomerModel({
     required this.id,
     required this.name,
+    required this.creditLimit,
+    required this.creditDue,
     this.phone,
     this.address,
     required this.ledgerId,
@@ -11,6 +15,8 @@ class CustomerModel {
 
   final int id;
   final String name;
+  final double creditLimit;
+  final double creditDue;
   final String? phone;
   final String? address;
   final int ledgerId;
@@ -19,6 +25,8 @@ class CustomerModel {
   CustomerModel copyWith({
     int? id,
     String? name,
+    double? creditLimit,
+    double? creditDue,
     String? phone,
     String? address,
     int? ledgerId,
@@ -27,6 +35,8 @@ class CustomerModel {
     return CustomerModel(
       id: id ?? this.id,
       name: name ?? this.name,
+      creditLimit: creditLimit ?? this.creditLimit,
+      creditDue: creditDue ?? this.creditDue,
       phone: phone ?? this.phone,
       address: address ?? this.address,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -37,13 +47,41 @@ class CustomerModel {
 
 /// Data needed to create or update a customer.
 class CustomerDraft {
-  const CustomerDraft({
-    required this.name,
-    this.phone,
-    this.address,
-  });
+  const CustomerDraft({required this.name, this.phone, this.address});
 
   final String name;
   final String? phone;
   final String? address;
+}
+
+class CustomerCreditEntry {
+  const CustomerCreditEntry({
+    required this.invoiceId,
+    required this.invoiceNo,
+    required this.invoiceDate,
+    required this.totalAmount,
+    required this.paidAmount,
+    required this.balanceDue,
+    required this.paymentStatus,
+  });
+
+  final int invoiceId;
+  final String invoiceNo;
+  final DateTime invoiceDate;
+  final double totalAmount;
+  final double paidAmount;
+  final double balanceDue;
+  final PaymentStatus paymentStatus;
+}
+
+class CustomerCollectionEntry {
+  const CustomerCollectionEntry({
+    required this.voucherId,
+    required this.amount,
+    required this.createdAt,
+  });
+
+  final int voucherId;
+  final double amount;
+  final DateTime createdAt;
 }
