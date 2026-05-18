@@ -3,8 +3,9 @@ class AppStrings {
   AppStrings._();
 
   // App Info
-  static const String appName = 'Store Billing';
+  static const String appName = 'CalcPOS';
   static const String appVersion = '1.0.0';
+  static const String appTagline = 'Simple • Fast • Reliable';
 
   // Calculator Screen
   static const String register = 'Register #1';

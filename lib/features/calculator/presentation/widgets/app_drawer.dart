@@ -1,3 +1,5 @@
+import 'package:billing_app_pos/core/constants/app_images.dart';
+import 'package:billing_app_pos/core/constants/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,23 +39,13 @@ class AppDrawer extends ConsumerWidget {
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.point_of_sale,
-                      color: Colors.white,
-                      size: 32,
-                    ),
+                    child: Image.asset(AppImages.logo, fit: BoxFit.contain),
                   ),
                   const SizedBox(height: AppSizes.spacingMedium),
                   Text(
-                    'Store Billing',
+                    AppStrings.appName,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Register #1',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodySmall?.color,
                     ),
                   ),
                 ],
