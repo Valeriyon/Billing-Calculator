@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
@@ -33,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
@@ -43,27 +44,69 @@ class AppDatabase extends _$AppDatabase {
         await ensureDefaultItemSeries();
       },
       onUpgrade: (Migrator m, int from, int to) async {
+        // Run migrations cumulatively so users can jump multiple schema
+        // versions in a single upgrade. Every step is guarded so it can be
+        // re-run safely against partially migrated databases.
         if (from < 2) {
-          await m.createTable(inventoryItems);
+          if (!await _tableExists('inventory_items')) {
+            await m.createTable(inventoryItems);
+          }
         }
-        if (from >= 2 && from < 3) {
-          await m.addColumn(inventoryItems, inventoryItems.barcode);
+
+        if (from < 3) {
+          if (!await _columnExists('inventory_items', 'barcode')) {
+            await m.addColumn(inventoryItems, inventoryItems.barcode);
+          }
         }
-        if (from >= 3 && from < 4) {
-          await m.addColumn(inventoryItems, inventoryItems.uom);
-          await m.addColumn(inventoryItems, inventoryItems.unitValue);
+
+        if (from < 4) {
+          if (!await _columnExists('inventory_items', 'uom')) {
+            await m.addColumn(inventoryItems, inventoryItems.uom);
+          }
+          if (!await _columnExists('inventory_items', 'unit_value')) {
+            await m.addColumn(inventoryItems, inventoryItems.unitValue);
+          }
         }
+
         if (from < 5) {
-          await m.createTable(documentSeriesNumbers);
+          if (!await _tableExists('document_series_numbers')) {
+            await m.createTable(documentSeriesNumbers);
+          }
           await ensureDefaultItemSeries();
         }
+
         if (from < 6) {
-          await m.createTable(ledgers);
-          await m.createTable(customers);
-          await m.createTable(vouchers);
-          await m.createTable(ledgerEntries);
-          await m.addColumn(invoices, invoices.customerId);
-          await m.addColumn(invoices, invoices.paidAmount);
+          if (!await _tableExists('ledgers')) {
+            await m.createTable(ledgers);
+          }
+          if (!await _tableExists('customers')) {
+            await m.createTable(customers);
+          }
+          if (!await _tableExists('vouchers')) {
+            await m.createTable(vouchers);
+          }
+          if (!await _tableExists('ledger_entries')) {
+            await m.createTable(ledgerEntries);
+          }
+          if (!await _columnExists('invoices', 'customer_id')) {
+            await m.addColumn(invoices, invoices.customerId);
+          }
+          if (!await _columnExists('invoices', 'paid_amount')) {
+            await m.addColumn(invoices, invoices.paidAmount);
+          }
+        }
+
+        if (from < 7) {
+          if (!await _columnExists('customers', 'credit_limit')) {
+            await m.addColumn(customers, customers.creditLimit);
+          }
+          if (!await _columnExists('customers', 'credit_due')) {
+            await m.addColumn(customers, customers.creditDue);
+          }
+        }
+
+        if (from < 8) {
+          await _normalizeInvoicePaymentData();
         }
       },
     );
@@ -300,6 +343,8 @@ class AppDatabase extends _$AppDatabase {
       return insertCustomer(
         CustomersCompanion.insert(
           name: normalizedName,
+          creditLimit: const Value(500.0),
+          creditDue: const Value(0.0),
           phone: Value(
             normalizedPhone == null || normalizedPhone.isEmpty
                 ? null
@@ -391,6 +436,74 @@ class AppDatabase extends _$AppDatabase {
       'WHERE module = ?',
       [nowMillis, normalizedModule],
     );
+  }
+
+  Future<void> _normalizeInvoicePaymentData() async {
+    final cashMode = PaymentMode.cash.index;
+    final upiMode = PaymentMode.upi.index;
+    final creditMode = PaymentMode.credit.index;
+    final pendingStatus = PaymentStatus.pending.index;
+    final partialStatus = PaymentStatus.partial.index;
+    final fulfilledStatus = PaymentStatus.fulfilled.index;
+
+    await customStatement(
+      'UPDATE invoices '
+      'SET paid_amount = total_amount '
+      'WHERE payment_mode IN (?, ?)',
+      [cashMode, upiMode],
+    );
+
+    await customStatement(
+      'UPDATE invoices '
+      'SET payment_status = ? '
+      'WHERE payment_mode IN (?, ?)',
+      [fulfilledStatus, cashMode, upiMode],
+    );
+
+    await customStatement(
+      'UPDATE invoices '
+      'SET payment_status = CASE '
+      '  WHEN paid_amount <= 0 THEN ? '
+      '  WHEN paid_amount >= total_amount THEN ? '
+      '  ELSE ? '
+      'END '
+      'WHERE payment_mode = ?',
+      [pendingStatus, fulfilledStatus, partialStatus, creditMode],
+    );
+  }
+
+  /// Check whether a table exists using sqlite_master.
+  Future<bool> _tableExists(String table) async {
+    try {
+      final rows = await customSelect(
+        'SELECT name FROM sqlite_master WHERE type = ? AND name = ? LIMIT 1',
+        variables: [Variable<String>('table'), Variable<String>(table)],
+      ).get();
+      return rows.isNotEmpty;
+    } catch (e) {
+      debugPrint('Failed to check table existence for $table: $e');
+      return false;
+    }
+  }
+
+  /// Check whether a specific column exists in a table using PRAGMA.
+  Future<bool> _columnExists(String table, String column) async {
+    try {
+      final rows = await customSelect('PRAGMA table_info("$table")').get();
+      for (final row in rows) {
+        try {
+          final name = row.read<String>('name');
+          if (name == column) return true;
+        } catch (_) {
+          // ignore rows that don't have the expected column
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Failed to check column existence for $table.$column: $e');
+      // If we can't determine, be conservative and return false so migration will attempt
+      return false;
+    }
   }
 }
 

@@ -11,6 +11,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/utils/image_storage.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/common_app_bar.dart';
+import '../../../core/widgets/confirmation_dialog.dart';
 import '../domain/inventory_item_model.dart';
 import 'providers/inventory_providers.dart';
 
@@ -76,7 +77,9 @@ class _InventoryItemFormScreenState
   Future<void> _loadNextItemCode() async {
     setState(() => _isInitializing = true);
     try {
-      final code = await ref.read(inventoryRepositoryProvider).getNextItemCode();
+      final code = await ref
+          .read(inventoryRepositoryProvider)
+          .getNextItemCode();
       if (!mounted) {
         return;
       }
@@ -244,9 +247,10 @@ class _InventoryItemFormScreenState
                               isRequired: true,
                               icon: Icons.currency_rupee,
                               controller: _priceController,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               hintText: '0.00',
                               validator: (value) {
                                 if ((value ?? '').trim().isEmpty) {
@@ -382,7 +386,9 @@ class _InventoryItemFormScreenState
     if (_codeController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Item code is unavailable. Please retry code generation.'),
+          content: Text(
+            'Item code is unavailable. Please retry code generation.',
+          ),
         ),
       );
       return;
@@ -463,6 +469,18 @@ class _InventoryItemFormScreenState
       return;
     }
 
+    final shouldClear = await showConfirmationDialog(
+      context,
+      title: 'Remove image',
+      message: 'Remove the current image from this item?',
+      confirmLabel: 'Remove',
+      isDestructive: true,
+    );
+
+    if (!shouldClear || !mounted) {
+      return;
+    }
+
     setState(() {
       _imagePathController.clear();
     });
@@ -483,7 +501,6 @@ class _InventoryItemFormScreenState
       _barcodeController.text = scannedCode.trim();
     });
   }
-
 }
 
 class _FormSection extends StatelessWidget {
@@ -515,7 +532,11 @@ class _FormSection extends StatelessWidget {
             padding: const EdgeInsets.all(AppSizes.paddingLarge),
             child: Row(
               children: [
-                Icon(icon, color: AppColors.primary, size: AppSizes.iconSizeSmall),
+                Icon(
+                  icon,
+                  color: AppColors.primary,
+                  size: AppSizes.iconSizeSmall,
+                ),
                 const SizedBox(width: AppSizes.spacingSmall),
                 Text(
                   title,
@@ -695,7 +716,10 @@ class _FieldLabel extends StatelessWidget {
         if (isRequired)
           const Text(
             ' *',
-            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: AppColors.error,
+              fontWeight: FontWeight.bold,
+            ),
           ),
       ],
     );
@@ -783,10 +807,7 @@ class _ImageUploadSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        border: Border.all(
-          color: colorScheme.primary,
-          width: 2,
-        ),
+        border: Border.all(color: colorScheme.primary, width: 2),
       ),
       padding: const EdgeInsets.all(AppSizes.paddingLarge),
       child: Column(
@@ -835,7 +856,9 @@ class _ImageUploadSection extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(AppSizes.buttonHeightSmall),
+                    minimumSize: const Size.fromHeight(
+                      AppSizes.buttonHeightSmall,
+                    ),
                   ),
                 ),
               ),
@@ -848,7 +871,9 @@ class _ImageUploadSection extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(AppSizes.buttonHeightSmall),
+                    minimumSize: const Size.fromHeight(
+                      AppSizes.buttonHeightSmall,
+                    ),
                   ),
                 ),
               ),

@@ -1,9 +1,12 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/router/app_router.dart';
+import 'core/widgets/confirmation_dialog.dart';
 import 'core/theme/light_theme.dart';
 import 'core/theme/dark_theme.dart';
 import 'core/theme/contrast_theme.dart';
@@ -25,11 +28,59 @@ void main() async {
 }
 
 /// Main application widget
-class BillingApp extends ConsumerWidget {
+class BillingApp extends ConsumerStatefulWidget {
   const BillingApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BillingApp> createState() => _BillingAppState();
+}
+
+class _BillingAppState extends ConsumerState<BillingApp> {
+  late final AppLifecycleListener _appLifecycleListener;
+  bool _isShowingExitDialog = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _appLifecycleListener = AppLifecycleListener(
+      onExitRequested: _handleExitRequest,
+    );
+  }
+
+  @override
+  void dispose() {
+    _appLifecycleListener.dispose();
+    super.dispose();
+  }
+
+  Future<ui.AppExitResponse> _handleExitRequest() async {
+    if (_isShowingExitDialog) {
+      return ui.AppExitResponse.cancel;
+    }
+
+    final dialogContext = rootNavigatorKey.currentContext;
+    if (dialogContext == null) {
+      return ui.AppExitResponse.exit;
+    }
+
+    _isShowingExitDialog = true;
+    try {
+      final shouldExit = await showConfirmationDialog(
+        dialogContext,
+        title: 'Exit app',
+        message: 'Are you sure you want to exit the app?',
+        confirmLabel: 'Exit',
+        isDestructive: true,
+      );
+
+      return shouldExit ? ui.AppExitResponse.exit : ui.AppExitResponse.cancel;
+    } finally {
+      _isShowingExitDialog = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userPrefs = ref.watch(userPreferencesProvider);
     final effectiveThemeMode = ref.watch(themeModeProvider);
     final textScale = userPrefs.textScale;

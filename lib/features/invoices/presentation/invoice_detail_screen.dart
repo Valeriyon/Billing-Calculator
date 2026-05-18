@@ -67,7 +67,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
 
     final invoice = _invoice!;
     final items = _items ?? [];
-
     return Scaffold(
       appBar: CommonAppBar(
         title: Text(invoice.invoiceNo),
