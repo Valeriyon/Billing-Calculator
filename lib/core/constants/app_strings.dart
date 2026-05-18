@@ -3,7 +3,7 @@ class AppStrings {
   AppStrings._();
 
   // App Info
-  static const String appName = 'Billing Calculator';
+  static const String appName = 'CalcPOS';
   static const String appVersion = '1.0.0';
   static const String appTagline = 'Simple • Fast • Reliable';
 
