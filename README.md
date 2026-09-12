@@ -135,3 +135,31 @@ Stores configurable number series used for generated document codes.
 - Invoice numbers are generated in the format `INV-YYYYMMDD-###`.
 - The current codebase includes placeholders for print and share actions in the UI.
 - The app is designed to work offline and keeps data stored locally on the device.
+
+## Android APK Size Optimization
+
+Use Flutter build flags to produce smaller direct-distribution APKs for ARM64 devices.
+
+### Current release optimizations
+
+- Release build enables code shrinking (`minifyEnabled`) and resource shrinking (`shrinkResources`)
+- ARM64-only packaging is controlled at build time with `--target-platform android-arm64`
+
+### Build commands
+
+```bash
+# Standard release APK
+flutter build apk --release
+
+# Recommended explicit command (guarantees ARM64-only)
+flutter build apk --release --target-platform android-arm64
+
+# Optional: split outputs per ABI
+flutter build apk --release --split-per-abi
+```
+
+### Verify output size
+
+```bash
+dir build\\app\\outputs\\flutter-apk
+```

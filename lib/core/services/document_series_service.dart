@@ -61,7 +61,9 @@ class DocumentSeriesService {
         .replaceAll('__', '_')
         .trim();
 
-    if (output.startsWith('-') || output.startsWith('/') || output.startsWith('_')) {
+    if (output.startsWith('-') ||
+        output.startsWith('/') ||
+        output.startsWith('_')) {
       output = output.substring(1);
     }
     if (output.endsWith('-') || output.endsWith('/') || output.endsWith('_')) {

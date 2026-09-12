@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,9 +43,13 @@ class CustomerManageState {
   }
 }
 
-class CustomerManagerNotifier extends StateNotifier<CustomerManageState> {
-  CustomerManagerNotifier(this._repository) : super(const CustomerManageState()) {
-    _subscription = _repository.watchAllCustomers().listen(
+class CustomerManagerNotifier extends Notifier<CustomerManageState> {
+  late final CustomerRepository _repository;
+
+  @override
+  CustomerManageState build() {
+    _repository = ref.watch(customerRepositoryProvider);
+    final sub = _repository.watchAllCustomers().listen(
       (customers) {
         final next = state.copyWith(
           isLoading: false,
@@ -62,15 +65,8 @@ class CustomerManagerNotifier extends StateNotifier<CustomerManageState> {
         );
       },
     );
-  }
-
-  final CustomerRepository _repository;
-  StreamSubscription<List<CustomerModel>>? _subscription;
-
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
+    ref.onDispose(sub.cancel);
+    return const CustomerManageState();
   }
 
   void setSearchQuery(String value) {
@@ -143,11 +139,7 @@ class CustomerManagerNotifier extends StateNotifier<CustomerManageState> {
       return fallback;
     }
 
-    const prefixes = [
-      'Exception: ',
-      'Bad state: ',
-      'Invalid argument(s): ',
-    ];
+    const prefixes = ['Exception: ', 'Bad state: ', 'Invalid argument(s): '];
 
     var cleaned = raw;
     for (final prefix in prefixes) {
@@ -185,10 +177,9 @@ final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
 });
 
 final customerManagerProvider =
-    StateNotifierProvider<CustomerManagerNotifier, CustomerManageState>((ref) {
-  final repository = ref.watch(customerRepositoryProvider);
-  return CustomerManagerNotifier(repository);
-});
+    NotifierProvider<CustomerManagerNotifier, CustomerManageState>(
+      CustomerManagerNotifier.new,
+    );
 
 final customerByIdProvider = FutureProvider.family<CustomerModel?, int>((
   ref,
@@ -205,7 +196,10 @@ final customerCreditsProvider =
     });
 
 final customerCollectionsProvider =
-    FutureProvider.family<List<CustomerCollectionEntry>, int>((ref, customerId) {
+    FutureProvider.family<List<CustomerCollectionEntry>, int>((
+      ref,
+      customerId,
+    ) {
       return ref
           .watch(customerRepositoryProvider)
           .getCollectionsForCustomer(customerId);

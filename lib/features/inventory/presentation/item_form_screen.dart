@@ -955,7 +955,7 @@ class _BarcodeScannerScreenState extends State<_BarcodeScannerScreen> {
               _beepPlayer.play(AssetSource('sounds/scan_beep.wav'));
               Navigator.of(context).pop(code);
             },
-            errorBuilder: (context, error, child) {
+            errorBuilder: (context, error) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSizes.paddingLarge),

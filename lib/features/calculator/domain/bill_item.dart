@@ -42,32 +42,6 @@ class BillItem {
     );
   }
 
-  /// Create from JSON map
-  factory BillItem.fromJson(Map<String, dynamic> json) {
-    return BillItem(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      quantity: (json['quantity'] as num).toDouble(),
-      rate: (json['rate'] as num).toDouble(),
-      inventoryItemId: (json['inventoryItemId'] as num?)?.toInt(),
-      barcode: json['barcode'] as String?,
-      discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0.0,
-    );
-  }
-
-  /// Convert to JSON map
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'quantity': quantity,
-      'rate': rate,
-      'inventoryItemId': inventoryItemId,
-      'barcode': barcode,
-      'discountAmount': discountAmount,
-    };
-  }
-
   @override
   String toString() {
     return 'BillItem(id: $id, name: $name, qty: $quantity, rate: $rate, total: $total)';

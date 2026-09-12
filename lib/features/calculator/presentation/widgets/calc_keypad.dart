@@ -6,6 +6,7 @@ import '../../../../core/widgets/keypad_button.dart';
 import '../../../../core/widgets/keypad_button_back.dart';
 import '../../../../core/widgets/keypad_button_calc.dart';
 import '../../domain/calc_logic.dart';
+import '../providers/calculator_providers.dart';
 
 /// Calculator keypad with numbers, operators, and actions
 /// Buttons expand to fill available width

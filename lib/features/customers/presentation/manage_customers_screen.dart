@@ -164,7 +164,8 @@ class _ManageCustomersScreenState extends ConsumerState<ManageCustomersScreen> {
                         final customer = state.filteredCustomers[index];
                         return _CustomerTile(
                           customer: customer,
-                          onTap: () => context.push('/customers/${customer.id}'),
+                          onTap: () =>
+                              context.push('/customers/${customer.id}'),
                         );
                       },
                     ),
@@ -177,10 +178,7 @@ class _ManageCustomersScreenState extends ConsumerState<ManageCustomersScreen> {
 }
 
 class _CustomerTile extends StatelessWidget {
-  const _CustomerTile({
-    required this.customer,
-    required this.onTap,
-  });
+  const _CustomerTile({required this.customer, required this.onTap});
 
   final CustomerModel customer;
   final VoidCallback onTap;
@@ -197,7 +195,9 @@ class _CustomerTile extends StatelessWidget {
       child: ListTile(
         title: Text(customer.name),
         subtitle: Text(
-          (customer.phone ?? '').isEmpty ? 'No contact number' : customer.phone!,
+          (customer.phone ?? '').isEmpty
+              ? 'No contact number'
+              : customer.phone!,
         ),
         leading: CircleAvatar(
           child: Text(

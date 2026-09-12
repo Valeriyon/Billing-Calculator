@@ -4,6 +4,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/currency_format.dart';
 import '../../domain/calc_logic.dart';
+import '../providers/calculator_providers.dart';
 
 /// Calculator display showing current Qty × Rate = Total
 class CalcDisplay extends ConsumerWidget {
@@ -24,13 +25,13 @@ class CalcDisplay extends ConsumerWidget {
             Expanded(
               child: _InputBox(
                 label: 'Rate',
-                value: calcState.rateInput.isEmpty
-                    ? '0'
-                    : calcState.rateInput,
+                value: calcState.rateInput.isEmpty ? '0' : calcState.rateInput,
                 isActive: calcState.currentMode == CalcInputMode.rate,
                 prefix: '₹',
                 onTap: () {
-                  ref.read(calculatorProvider.notifier).setMode(CalcInputMode.rate);
+                  ref
+                      .read(calculatorProvider.notifier)
+                      .setMode(CalcInputMode.rate);
                 },
               ),
             ),

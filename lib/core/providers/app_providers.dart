@@ -4,9 +4,6 @@ import '../../features/settings/domain/preferences_model.dart';
 import '../database/app_database.dart';
 import '../services/document_series_service.dart';
 
-// Global singleton to ensure database is created only once
-AppDatabase? _databaseInstance;
-
 /// Provider for SharedPreferences instance
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be overridden in main()');
@@ -14,9 +11,9 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 
 /// Provider for the database instance
 final databaseProvider = Provider<AppDatabase>((ref) {
-  // Use a lazy singleton pattern to ensure only one database instance exists
-  _databaseInstance ??= AppDatabase();
-  return _databaseInstance!;
+  final db = AppDatabase();
+  ref.onDispose(() => db.close());
+  return db;
 });
 
 /// Provider for document series formatter/increment service
@@ -41,17 +38,19 @@ final databaseInitializationProvider = FutureProvider<void>((ref) async {
 
 /// Provider for user preferences with persistence
 final userPreferencesProvider =
-    StateNotifierProvider<UserPreferencesNotifier, UserPreferences>((ref) {
-      final prefs = ref.watch(sharedPreferencesProvider);
-      return UserPreferencesNotifier(prefs);
-    });
+    NotifierProvider<UserPreferencesNotifier, UserPreferences>(
+      UserPreferencesNotifier.new,
+    );
 
-/// StateNotifier for managing user preferences
-class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
-  UserPreferencesNotifier(this._prefs)
-    : super(UserPreferences.fromPrefs(_prefs));
+/// Notifier for managing user preferences
+class UserPreferencesNotifier extends Notifier<UserPreferences> {
+  late final SharedPreferences _prefs;
 
-  final SharedPreferences _prefs;
+  @override
+  UserPreferences build() {
+    _prefs = ref.watch(sharedPreferencesProvider);
+    return UserPreferences.fromPrefs(_prefs);
+  }
 
   /// Update theme mode
   Future<void> setThemeMode(AppThemeMode mode) async {

@@ -5,7 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/currency_format.dart';
 import '../../../../core/widgets/confirmation_dialog.dart';
 import '../../domain/bill_item.dart';
-import '../../domain/calc_logic.dart';
+import '../providers/calculator_providers.dart';
 
 /// Modal to view and edit all bill items
 class AllItemsModal extends ConsumerStatefulWidget {
@@ -216,9 +216,9 @@ class _AllItemsModalState extends ConsumerState<AllItemsModal> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     errorText!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.error,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.error),
                   ),
                 ),
               ],

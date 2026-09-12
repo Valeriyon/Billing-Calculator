@@ -10,7 +10,9 @@ class LocalImageStorage {
 
   static const String _inventoryImageFolder = 'inventory_images';
 
-  static Future<String?> pickAndStoreImage({required ImageSource source}) async {
+  static Future<String?> pickAndStoreImage({
+    required ImageSource source,
+  }) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: source);
     if (pickedFile == null) {
