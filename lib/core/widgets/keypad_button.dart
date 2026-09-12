@@ -70,16 +70,18 @@ class KeypadButton extends StatelessWidget {
           },
           borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
           child: Center(
-            child: child ?? (icon != null
-                ? Icon(icon, size: AppSizes.iconSizeLarge, color: fgColor)
-                : Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: fontSize ?? AppSizes.fontSizeXXLarge,
-                      fontWeight: FontWeight.w600,
-                      color: fgColor,
-                    ),
-                  )),
+            child:
+                child ??
+                (icon != null
+                    ? Icon(icon, size: AppSizes.iconSizeLarge, color: fgColor)
+                    : Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: fontSize ?? AppSizes.fontSizeXXLarge,
+                          fontWeight: FontWeight.w600,
+                          color: fgColor,
+                        ),
+                      )),
           ),
         ),
       ),

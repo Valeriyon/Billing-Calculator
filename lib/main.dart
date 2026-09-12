@@ -1,10 +1,10 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:billing_app_pos/l10n/app_localizations.dart';
 import 'core/router/app_router.dart';
 import 'core/widgets/confirmation_dialog.dart';
 import 'core/theme/light_theme.dart';
@@ -65,11 +65,14 @@ class _BillingAppState extends ConsumerState<BillingApp> {
 
     _isShowingExitDialog = true;
     try {
+      final l10n = AppLocalizations.of(dialogContext);
       final shouldExit = await showConfirmationDialog(
         dialogContext,
-        title: 'Exit app',
-        message: 'Are you sure you want to exit the app?',
-        confirmLabel: 'Exit',
+        title: l10n?.exitApp ?? 'Exit app',
+        message:
+            l10n?.exitConfirmMessage ??
+            'Are you sure you want to exit the app?',
+        confirmLabel: l10n?.exit ?? 'Exit',
         isDestructive: true,
       );
 
@@ -103,20 +106,10 @@ class _BillingAppState extends ConsumerState<BillingApp> {
       title: 'Store Billing',
       debugShowCheckedModeBanner: false,
       theme: theme,
-      themeMode: ThemeMode.light,
       routerConfig: appRouter,
       locale: userPrefs.locale,
-      supportedLocales: const [
-        Locale('en'),
-        Locale('ml'),
-        Locale('hi'),
-        Locale('ta'),
-      ],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
     );
   }
 }

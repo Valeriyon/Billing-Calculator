@@ -1,0 +1,33 @@
+{
+  "@@locale": "en",
+  "appTitle": "Store Billing",
+  "@appTitle": {
+    "description": "Application title"
+  },
+  "checkout": "Checkout",
+  "invoiceHistory": "Invoice History",
+  "settings": "Settings",
+  "confirmSave": "Confirm & Save",
+  "cancel": "Cancel",
+  "goBack": "Go Back",
+  "emptyCart": "Your cart is empty",
+  "noInvoices": "No invoices found",
+  "invoiceNotFound": "Invoice not found",
+  "failedToLoadInvoices": "Failed to load invoices",
+  "retry": "Retry",
+  "sharePdf": "Share PDF",
+  "print": "Print",
+  "exportExcel": "Export Excel",
+  "quantity": "Qty",
+  "rate": "Rate",
+  "total": "Total",
+  "subtotal": "Subtotal",
+  "discount": "Discount",
+  "grandTotal": "Grand Total",
+  "cash": "Cash",
+  "upi": "UPI",
+  "credit": "Credit",
+  "exitApp": "Exit app",
+  "exitConfirmMessage": "Are you sure you want to exit the app?",
+  "exit": "Exit"
+}

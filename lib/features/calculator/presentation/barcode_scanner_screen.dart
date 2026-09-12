@@ -11,7 +11,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../core/widgets/confirmation_dialog.dart';
-import '../domain/calc_logic.dart';
+import 'providers/calculator_providers.dart';
 import '../domain/bill_item.dart';
 import '../../inventory/presentation/providers/inventory_providers.dart';
 
@@ -243,7 +243,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
                             controller: _scannerController,
                             scanWindow: scanWindow,
                             onDetect: _onDetect,
-                            errorBuilder: (context, error, child) {
+                            errorBuilder: (context, error) {
                               return Center(
                                 child: Padding(
                                   padding: const EdgeInsets.all(
@@ -280,7 +280,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
                                 ),
                               );
                             },
-                            placeholderBuilder: (context, child) {
+                            placeholderBuilder: (context) {
                               return Center(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,

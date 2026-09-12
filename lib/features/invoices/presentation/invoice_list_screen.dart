@@ -5,10 +5,10 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/date_helpers.dart';
-import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/invoices.dart';
-import '../../../core/providers/app_providers.dart';
 import '../../../core/widgets/common_app_bar.dart';
+import '../domain/invoice_model.dart';
+import 'providers/invoice_providers.dart';
 
 /// Invoice list screen showing history with filters
 class InvoiceListScreen extends ConsumerStatefulWidget {
@@ -20,48 +20,16 @@ class InvoiceListScreen extends ConsumerStatefulWidget {
 
 class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
   bool _isConsolidated = false;
-  DateTime? _startDate;
-  DateTime? _endDate;
-  PaymentMode? _paymentModeFilter;
-  List<Invoice>? _invoices;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadInvoices();
-  }
-
-  Future<void> _loadInvoices() async {
-    setState(() => _isLoading = true);
-
-    final db = ref.read(databaseProvider);
-    List<Invoice> invoices;
-
-    if (_startDate != null && _endDate != null) {
-      invoices = await db.getInvoicesByDateRange(
-        DateHelpers.startOfDay(_startDate!),
-        DateHelpers.endOfDay(_endDate!),
-      );
-    } else if (_paymentModeFilter != null) {
-      invoices = await db.getInvoicesByPaymentMode(_paymentModeFilter!);
-    } else {
-      invoices = await db.getAllInvoices();
-    }
-
-    setState(() {
-      _invoices = invoices;
-      _isLoading = false;
-    });
-  }
+  InvoiceFilter _filter = const InvoiceFilter();
 
   @override
   Widget build(BuildContext context) {
+    final invoicesAsync = ref.watch(invoiceListProvider(_filter));
+
     return Scaffold(
       appBar: CommonAppBar(
         title: const Text('Invoice History'),
         actions: [
-          // Toggle view mode
           IconButton(
             icon: Icon(_isConsolidated ? Icons.list : Icons.calendar_view_day),
             tooltip: _isConsolidated ? 'Detailed View' : 'Consolidated View',
@@ -69,22 +37,58 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
               setState(() => _isConsolidated = !_isConsolidated);
             },
           ),
-          // Filter button
           IconButton(
             icon: const Icon(Icons.filter_list),
             tooltip: 'Filter',
             onPressed: () => _showFilterSheet(context),
           ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export Excel',
+            onPressed: invoicesAsync.maybeWhen(
+              data: (invoices) =>
+                  invoices.isEmpty ? null : () => _exportExcel(invoices),
+              orElse: () => null,
+            ),
+          ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _invoices == null || _invoices!.isEmpty
-          ? _EmptyState()
-          : _isConsolidated
-          ? _ConsolidatedView(invoices: _invoices!)
-          : _DetailedView(invoices: _invoices!),
+      body: invoicesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Failed to load invoices'),
+              const SizedBox(height: AppSizes.spacingSmall),
+              TextButton(
+                onPressed: () => ref.invalidate(invoiceListProvider(_filter)),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+        data: (invoices) {
+          if (invoices.isEmpty) {
+            return _EmptyState();
+          }
+          return _isConsolidated
+              ? _ConsolidatedView(invoices: invoices)
+              : _DetailedView(invoices: invoices);
+        },
+      ),
     );
+  }
+
+  Future<void> _exportExcel(List<InvoiceModel> invoices) async {
+    try {
+      await ref.read(invoiceExportServiceProvider).shareExcel(invoices);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    }
   }
 
   void _showFilterSheet(BuildContext context) {
@@ -92,25 +96,21 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
       context: context,
       isScrollControlled: true,
       builder: (context) => _FilterSheet(
-        startDate: _startDate,
-        endDate: _endDate,
-        paymentMode: _paymentModeFilter,
+        startDate: _filter.startDate,
+        endDate: _filter.endDate,
+        paymentMode: _filter.paymentMode,
         onApply: (start, end, mode) {
           setState(() {
-            _startDate = start;
-            _endDate = end;
-            _paymentModeFilter = mode;
+            _filter = InvoiceFilter(
+              startDate: start,
+              endDate: end,
+              paymentMode: mode,
+            );
           });
-          _loadInvoices();
           Navigator.pop(context);
         },
         onReset: () {
-          setState(() {
-            _startDate = null;
-            _endDate = null;
-            _paymentModeFilter = null;
-          });
-          _loadInvoices();
+          setState(() => _filter = const InvoiceFilter());
           Navigator.pop(context);
         },
       ),
@@ -150,7 +150,7 @@ class _EmptyState extends StatelessWidget {
 class _DetailedView extends StatelessWidget {
   const _DetailedView({required this.invoices});
 
-  final List<Invoice> invoices;
+  final List<InvoiceModel> invoices;
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +168,7 @@ class _DetailedView extends StatelessWidget {
 class _InvoiceTile extends StatelessWidget {
   const _InvoiceTile({required this.invoice});
 
-  final Invoice invoice;
+  final InvoiceModel invoice;
 
   @override
   Widget build(BuildContext context) {
@@ -318,12 +318,12 @@ class _PaymentChip extends StatelessWidget {
 class _ConsolidatedView extends StatelessWidget {
   const _ConsolidatedView({required this.invoices});
 
-  final List<Invoice> invoices;
+  final List<InvoiceModel> invoices;
 
   @override
   Widget build(BuildContext context) {
     // Group invoices by date
-    final groupedInvoices = <DateTime, List<Invoice>>{};
+    final groupedInvoices = <DateTime, List<InvoiceModel>>{};
     for (final invoice in invoices) {
       final date = DateHelpers.startOfDay(invoice.createdAt);
       groupedInvoices.putIfAbsent(date, () => []).add(invoice);
@@ -365,7 +365,7 @@ class _DaySummaryTile extends StatelessWidget {
   final DateTime date;
   final int invoiceCount;
   final double totalAmount;
-  final List<Invoice> invoices;
+  final List<InvoiceModel> invoices;
 
   @override
   Widget build(BuildContext context) {

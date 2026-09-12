@@ -118,7 +118,10 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                             return null;
                           }
 
-                          final onlyDigits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+                          final onlyDigits = raw.replaceAll(
+                            RegExp(r'[^0-9]'),
+                            '',
+                          );
                           if (onlyDigits.length < 7 || onlyDigits.length > 15) {
                             return 'Enter a valid phone number';
                           }
@@ -142,7 +145,9 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                       AppButton(
                         onPressed: state.isSaving ? null : _handleSave,
                         isLoading: state.isSaving,
-                        label: widget.isEditing ? 'Update Customer' : 'Save Customer',
+                        label: widget.isEditing
+                            ? 'Update Customer'
+                            : 'Save Customer',
                         icon: Icons.save_outlined,
                         backgroundColor: AppColors.primary,
                       ),
@@ -186,7 +191,9 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     }
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 

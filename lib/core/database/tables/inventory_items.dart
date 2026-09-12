@@ -27,8 +27,8 @@ class InventoryItems extends Table {
   RealColumn get price => real()();
 
   /// Unit of measurement (pcs, kg, l, etc.)
-  TextColumn get uom => text().withLength(min: 1, max: 20)
-      .withDefault(const Constant('pcs'))();
+  TextColumn get uom =>
+      text().withLength(min: 1, max: 20).withDefault(const Constant('pcs'))();
 
   /// Quantity represented by one price unit (e.g. 1 kg, 500 g)
   RealColumn get unitValue => real().withDefault(const Constant(1.0))();
@@ -37,8 +37,9 @@ class InventoryItems extends Table {
   TextColumn get imagePath => text().nullable()();
 
   /// Availability status
-  IntColumn get status => intEnum<InventoryItemStatus>()
-      .withDefault(Constant(InventoryItemStatus.available.index))();
+  IntColumn get status => intEnum<InventoryItemStatus>().withDefault(
+    Constant(InventoryItemStatus.available.index),
+  )();
 
   /// Created timestamp
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

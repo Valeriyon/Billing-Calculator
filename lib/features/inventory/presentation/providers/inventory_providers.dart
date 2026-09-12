@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,10 +67,13 @@ class InventoryManageState {
   }
 }
 
-class InventoryManagerNotifier extends StateNotifier<InventoryManageState> {
-  InventoryManagerNotifier(this._repository)
-    : super(const InventoryManageState()) {
-    _subscription = _repository.watchAllItems().listen(
+class InventoryManagerNotifier extends Notifier<InventoryManageState> {
+  late final InventoryRepository _repository;
+
+  @override
+  InventoryManageState build() {
+    _repository = ref.watch(inventoryRepositoryProvider);
+    final sub = _repository.watchAllItems().listen(
       (items) {
         final next = state.copyWith(
           isLoading: false,
@@ -87,15 +89,8 @@ class InventoryManagerNotifier extends StateNotifier<InventoryManageState> {
         );
       },
     );
-  }
-
-  final InventoryRepository _repository;
-  StreamSubscription<List<InventoryItemModel>>? _subscription;
-
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
+    ref.onDispose(sub.cancel);
+    return const InventoryManageState();
   }
 
   void setSearchQuery(String value) {
@@ -274,12 +269,9 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
 });
 
 final inventoryManagerProvider =
-    StateNotifierProvider<InventoryManagerNotifier, InventoryManageState>((
-      ref,
-    ) {
-      final repository = ref.watch(inventoryRepositoryProvider);
-      return InventoryManagerNotifier(repository);
-    });
+    NotifierProvider<InventoryManagerNotifier, InventoryManageState>(
+      InventoryManagerNotifier.new,
+    );
 
 final inventoryBarcodeMapProvider = Provider<Map<String, InventoryItemModel>>((
   ref,

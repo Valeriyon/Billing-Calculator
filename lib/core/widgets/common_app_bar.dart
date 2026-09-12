@@ -25,11 +25,11 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor = isDark
-      ? (theme.appBarTheme.backgroundColor ?? colorScheme.surface)
-      : colorScheme.surface;
+        ? (theme.appBarTheme.backgroundColor ?? colorScheme.surface)
+        : colorScheme.surface;
     final foregroundColor = isDark
-      ? (theme.appBarTheme.foregroundColor ?? colorScheme.onSurface)
-      : colorScheme.onSurface;
+        ? (theme.appBarTheme.foregroundColor ?? colorScheme.onSurface)
+        : colorScheme.onSurface;
     final iconColor = isDark ? colorScheme.onSurface : AppColors.primary;
 
     return AppBar(
@@ -42,7 +42,8 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: centerTitle,
       leading: leading,
       title: DefaultTextStyle.merge(
-        style: theme.textTheme.headlineSmall?.copyWith(
+        style:
+            theme.textTheme.headlineSmall?.copyWith(
               color: foregroundColor,
               fontWeight: FontWeight.bold,
             ) ??

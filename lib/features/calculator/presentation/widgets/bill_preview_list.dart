@@ -4,7 +4,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/currency_format.dart';
 import '../../domain/bill_item.dart';
-import '../../domain/calc_logic.dart';
+import '../providers/calculator_providers.dart';
 
 /// Preview list of current bill items
 class BillPreviewList extends ConsumerWidget {

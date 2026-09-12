@@ -164,194 +164,245 @@ class _InventoryItemFormScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _FormSection(
-                        title: 'Item Image',
-                        icon: Icons.image_outlined,
-                        child: _ImageUploadSection(
-                          imagePath: _imagePathController.text,
-                          onPickFromGallery: () =>
-                              _pickImage(ImageSource.gallery),
-                          onPickFromCamera: () =>
-                              _pickImage(ImageSource.camera),
-                          onClear: _imagePathController.text.trim().isEmpty
-                              ? null
-                              : _clearImage,
-                        ),
+                      // Full-width modern product card with 16:9 banner
+                      _ItemProductCard(
+                        imagePath: _imagePathController.text,
+                        onTap: _showImagePickerModal,
+                        onPickFromCamera: () => _pickImage(ImageSource.camera),
+                        onPickFromGallery: () => _pickImage(ImageSource.gallery),
+                        onRemove: _clearImage,
                       ),
-                      _FormSection(
+                      const SizedBox(height: AppSizes.spacingLarge),
+
+                      // Section 1: Basic Information
+                      const _SectionHeader(
                         title: 'Basic Information',
                         icon: Icons.info_outline,
-                        child: Column(
-                          children: [
-                            _LabeledTextField(
-                              label: 'Barcode',
-                              icon: Icons.qr_code_scanner,
-                              controller: _barcodeController,
-                              hintText: 'Tap to scan barcode',
-                              readOnly: true,
-                              onTap: _scanBarcode,
-                              suffixIcon: IconButton(
+                      ),
+                      TextFormField(
+                        controller: _nameController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Item Name *',
+                          hintText: 'e.g., Fresh Apples',
+                          prefixIcon: Icon(Icons.inventory_2_outlined),
+                        ),
+                        validator: (value) {
+                          if ((value ?? '').trim().isEmpty) {
+                            return 'Item name is required';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSizes.spacingMedium),
+
+                      TextFormField(
+                        controller: _codeController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          labelText: 'Item Code',
+                          hintText: 'Generating code...',
+                          prefixIcon: const Icon(Icons.qr_code_2_outlined),
+                          suffixIcon: _codeLoadError != null
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.refresh,
+                                    color: AppColors.primary,
+                                  ),
+                                  onPressed: _loadNextItemCode,
+                                  tooltip: 'Retry code generation',
+                                )
+                              : const Icon(
+                                  Icons.lock_outline,
+                                  size: 18,
+                                  color: AppColors.textSecondaryLight,
+                                ),
+                        ),
+                      ),
+                      if (_codeLoadError != null) ...[
+                        const SizedBox(height: AppSizes.spacingXSmall),
+                        Text(
+                          _codeLoadError!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: AppSizes.spacingMedium),
+
+                      TextFormField(
+                        controller: _barcodeController,
+                        textInputAction: TextInputAction.next,
+                        decoration: InputDecoration(
+                          labelText: 'Barcode',
+                          hintText: 'Scan or type barcode',
+                          prefixIcon: const Icon(Icons.qr_code_scanner),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_barcodeController.text.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  onPressed: () => setState(
+                                    () => _barcodeController.clear(),
+                                  ),
+                                  tooltip: 'Clear barcode',
+                                ),
+                              IconButton(
                                 icon: const Icon(Icons.center_focus_strong),
                                 color: AppColors.primary,
                                 onPressed: _scanBarcode,
-                                tooltip: 'Scan barcode',
-                              ),
-                            ),
-                            const SizedBox(height: AppSizes.spacingLarge),
-                            _LabeledReadOnlyField(
-                              label: 'Item Code',
-                              value: _codeController.text,
-                              icon: Icons.qr_code_2_outlined,
-                            ),
-                            if (_codeLoadError != null) ...[
-                              const SizedBox(height: AppSizes.spacingSmall),
-                              Text(
-                                _codeLoadError!,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: AppColors.error),
-                              ),
-                              const SizedBox(height: AppSizes.spacingSmall),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: TextButton.icon(
-                                  onPressed: _loadNextItemCode,
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text('Retry code generation'),
-                                ),
+                                tooltip: 'Scan barcode with camera',
                               ),
                             ],
-                            const SizedBox(height: AppSizes.spacingLarge),
-                            _LabeledTextField(
-                              label: 'Item Name',
-                              isRequired: true,
-                              icon: Icons.label_outline,
-                              controller: _nameController,
-                              hintText: 'e.g., Fresh Apples',
-                              validator: (value) {
-                                if ((value ?? '').trim().isEmpty) {
-                                  return 'Item name is required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                      _FormSection(
-                        title: 'Pricing & Inventory',
+                      const SizedBox(height: AppSizes.spacingLarge),
+
+                      // Section 2: Pricing & Measurement
+                      const _SectionHeader(
+                        title: 'Pricing & Measurement',
                         icon: Icons.local_atm_outlined,
-                        child: Column(
-                          children: [
-                            _LabeledTextField(
-                              label: 'Price',
-                              isRequired: true,
-                              icon: Icons.currency_rupee,
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
                               controller: _priceController,
+                              textInputAction: TextInputAction.next,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
-                              hintText: '0.00',
+                              decoration: const InputDecoration(
+                                labelText: 'Price *',
+                                hintText: '0.00',
+                                prefixIcon: Icon(Icons.currency_rupee),
+                              ),
                               validator: (value) {
                                 if ((value ?? '').trim().isEmpty) {
-                                  return 'Price is required';
+                                  return 'Required';
                                 }
                                 final parsed = double.tryParse(value!.trim());
                                 if (parsed == null || parsed < 0) {
-                                  return 'Enter a valid price';
+                                  return 'Invalid';
                                 }
                                 return null;
                               },
                             ),
-                            const SizedBox(height: AppSizes.spacingLarge),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _LabeledDropdownField<InventoryUom>(
-                                    label: 'UOM',
-                                    isRequired: true,
-                                    icon: Icons.straighten,
-                                    value: _selectedUom,
-                                    items: InventoryUom.values,
-                                    itemTextBuilder: (uom) => uom.label,
-                                    onChanged: (value) {
-                                      if (value != null) {
-                                        setState(() => _selectedUom = value);
-                                      }
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: AppSizes.spacingSmall),
-                                Expanded(
-                                  child: _LabeledTextField(
-                                    label: 'Unit Value',
-                                    isRequired: true,
-                                    icon: Icons.numbers,
-                                    controller: _unitValueController,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
-                                    hintText: 'e.g., 1 or 500',
-                                    validator: (value) {
-                                      if ((value ?? '').trim().isEmpty) {
-                                        return 'Required';
-                                      }
-                                      final parsed = double.tryParse(
-                                        value!.trim(),
-                                      );
-                                      if (parsed == null || parsed <= 0) {
-                                        return 'Invalid';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      _FormSection(
-                        title: 'Additional Details',
-                        icon: Icons.description_outlined,
-                        child: Column(
-                          children: [
-                            _LabeledDropdownField<String>(
-                              label: 'Category',
-                              isRequired: true,
-                              icon: Icons.category_outlined,
-                              value: _selectedCategory,
-                              items: allCategoryOptions,
-                              itemTextBuilder: (category) => category,
+                          ),
+                          const SizedBox(width: AppSizes.spacingSmall),
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<InventoryUom>(
+                              initialValue: _selectedUom,
+                              isExpanded: true,
+                              decoration: const InputDecoration(
+                                labelText: 'UOM *',
+                                prefixIcon: Icon(Icons.straighten),
+                              ),
+                              items: InventoryUom.values
+                                  .map(
+                                    (uom) => DropdownMenuItem<InventoryUom>(
+                                      value: uom,
+                                      child: Text(
+                                        uom.label,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
                               onChanged: (value) {
-                                setState(() => _selectedCategory = value);
+                                if (value != null) {
+                                  setState(() => _selectedUom = value);
+                                }
                               },
+                            ),
+                          ),
+                          const SizedBox(width: AppSizes.spacingSmall),
+                          Expanded(
+                            flex: 2,
+                            child: TextFormField(
+                              controller: _unitValueController,
+                              textInputAction: TextInputAction.next,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              decoration: const InputDecoration(
+                                labelText: 'Unit Val *',
+                                hintText: 'e.g. 1',
+                              ),
                               validator: (value) {
                                 if ((value ?? '').trim().isEmpty) {
-                                  return 'Category is required';
+                                  return 'Required';
+                                }
+                                final parsed = double.tryParse(value!.trim());
+                                if (parsed == null || parsed <= 0) {
+                                  return 'Invalid';
                                 }
                                 return null;
                               },
                             ),
-                            const SizedBox(height: AppSizes.spacingLarge),
-                            _LabeledTextField(
-                              label: 'Brand',
-                              isRequired: true,
-                              icon: Icons.business_outlined,
-                              controller: _brandController,
-                              hintText: 'e.g., Farm Fresh',
-                              validator: (value) {
-                                if ((value ?? '').trim().isEmpty) {
-                                  return 'Brand is required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSizes.spacingLarge),
+
+                      // Section 3: Categorization
+                      const _SectionHeader(
+                        title: 'Categorization',
+                        icon: Icons.category_outlined,
+                      ),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedCategory,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Category *',
+                          hintText: 'Select category',
+                          prefixIcon: Icon(Icons.category_outlined),
                         ),
+                        items: allCategoryOptions
+                            .map(
+                              (category) => DropdownMenuItem<String>(
+                                value: category,
+                                child: Text(category),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() => _selectedCategory = value);
+                        },
+                        validator: (value) {
+                          if ((value ?? '').trim().isEmpty) {
+                            return 'Category is required';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSizes.spacingMedium),
+
+                      TextFormField(
+                        controller: _brandController,
+                        textInputAction: TextInputAction.done,
+                        decoration: const InputDecoration(
+                          labelText: 'Brand *',
+                          hintText: 'e.g., Farm Fresh',
+                          prefixIcon: Icon(Icons.business_outlined),
+                        ),
+                        validator: (value) {
+                          if ((value ?? '').trim().isEmpty) {
+                            return 'Brand is required';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: AppSizes.spacingXLarge),
+
+                      // Save Button
                       AppButton(
                         onPressed: state.isSaving ? null : _handleSave,
                         isLoading: state.isSaving,
@@ -375,6 +426,106 @@ class _InventoryItemFormScreenState
                 ),
               ),
             ),
+    );
+  }
+
+  void _showImagePickerModal() {
+    final normalized = _imagePathController.text.trim();
+    final hasImage = normalized.isNotEmpty && File(normalized).existsSync();
+    final theme = Theme.of(context);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppSizes.radiusXLarge),
+        ),
+      ),
+      builder: (modalContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.paddingLarge,
+              vertical: AppSizes.paddingMedium,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: AppSizes.paddingMedium),
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Text(
+                  hasImage ? 'Change Item Photo' : 'Add Item Photo',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacingMedium),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.accentBackground,
+                    child: Icon(
+                      Icons.camera_alt_outlined,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  title: const Text('Take a Photo'),
+                  subtitle: const Text('Use camera to capture item photo'),
+                  onTap: () {
+                    Navigator.pop(modalContext);
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.accentBackground,
+                    child: Icon(
+                      Icons.photo_library_outlined,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  title: const Text('Choose from Gallery'),
+                  subtitle: const Text('Select an image from device storage'),
+                  onTap: () {
+                    Navigator.pop(modalContext);
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+                if (hasImage) ...[
+                  const Divider(),
+                  ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: AppColors.destructiveBackground,
+                      child: Icon(
+                        Icons.delete_outline,
+                        color: AppColors.destructiveIcon,
+                      ),
+                    ),
+                    title: const Text(
+                      'Remove Photo',
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(modalContext);
+                      _clearImage();
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -503,55 +654,27 @@ class _InventoryItemFormScreenState
   }
 }
 
-class _FormSection extends StatelessWidget {
-  const _FormSection({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.icon});
 
   final String title;
   final IconData icon;
-  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSizes.spacingLarge),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.spacingMedium),
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSizes.paddingLarge),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: AppColors.primary,
-                  size: AppSizes.iconSizeSmall,
-                ),
-                const SizedBox(width: AppSizes.spacingSmall),
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-              ],
+          Icon(icon, size: 18, color: AppColors.primary),
+          const SizedBox(width: AppSizes.spacingSmall),
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
             ),
-          ),
-          Divider(height: 1, color: colorScheme.outlineVariant),
-          Padding(
-            padding: const EdgeInsets.all(AppSizes.paddingLarge),
-            child: child,
           ),
         ],
       ),
@@ -559,338 +682,344 @@ class _FormSection extends StatelessWidget {
   }
 }
 
-class _LabeledTextField extends StatelessWidget {
-  const _LabeledTextField({
-    required this.label,
-    required this.controller,
-    required this.hintText,
-    this.icon,
-    this.isRequired = false,
-    this.keyboardType,
-    this.readOnly = false,
-    this.onTap,
-    this.suffixIcon,
-    this.validator,
-  });
-
-  final String label;
-  final TextEditingController controller;
-  final String hintText;
-  final IconData? icon;
-  final bool isRequired;
-  final TextInputType? keyboardType;
-  final bool readOnly;
-  final VoidCallback? onTap;
-  final Widget? suffixIcon;
-  final String? Function(String?)? validator;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FieldLabel(label: label, isRequired: isRequired),
-        const SizedBox(height: AppSizes.spacingSmall),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          readOnly: readOnly,
-          onTap: onTap,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hintText,
-            filled: true,
-            fillColor: colorScheme.surfaceContainerHighest,
-            prefixIcon: icon == null
-                ? null
-                : Icon(icon, color: colorScheme.onSurfaceVariant),
-            suffixIcon: suffixIcon,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-              borderSide: BorderSide(color: colorScheme.outlineVariant),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-              borderSide: BorderSide(color: colorScheme.outlineVariant),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LabeledDropdownField<T> extends StatelessWidget {
-  const _LabeledDropdownField({
-    required this.label,
-    required this.items,
-    required this.itemTextBuilder,
-    required this.onChanged,
-    this.icon,
-    this.value,
-    this.isRequired = false,
-    this.validator,
-  });
-
-  final String label;
-  final List<T> items;
-  final String Function(T value) itemTextBuilder;
-  final void Function(T? value) onChanged;
-  final IconData? icon;
-  final T? value;
-  final bool isRequired;
-  final String? Function(T?)? validator;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FieldLabel(label: label, isRequired: isRequired),
-        const SizedBox(height: AppSizes.spacingSmall),
-        DropdownButtonFormField<T>(
-          initialValue: value,
-          isExpanded: true,
-          validator: validator,
-          items: items
-              .map(
-                (item) => DropdownMenuItem<T>(
-                  value: item,
-                  child: Text(itemTextBuilder(item)),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: colorScheme.surfaceContainerHighest,
-            prefixIcon: icon == null
-                ? null
-                : Icon(icon, color: colorScheme.onSurfaceVariant),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-              borderSide: BorderSide(color: colorScheme.outlineVariant),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-              borderSide: BorderSide(color: colorScheme.outlineVariant),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel({required this.label, required this.isRequired});
-
-  final String label;
-  final bool isRequired;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final style = Theme.of(context).textTheme.labelLarge?.copyWith(
-      color: colorScheme.onSurface,
-      fontWeight: FontWeight.w700,
-    );
-
-    return Row(
-      children: [
-        Text(label, style: style),
-        if (isRequired)
-          const Text(
-            ' *',
-            style: TextStyle(
-              color: AppColors.error,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _LabeledReadOnlyField extends StatelessWidget {
-  const _LabeledReadOnlyField({
-    required this.label,
-    required this.value,
-    this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FieldLabel(label: label, isRequired: true),
-        const SizedBox(height: AppSizes.spacingSmall),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSizes.paddingMedium,
-            vertical: AppSizes.paddingMedium,
-          ),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
-          child: Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, color: AppColors.primary),
-                const SizedBox(width: AppSizes.spacingSmall),
-              ],
-              Expanded(
-                child: Text(
-                  value.trim().isEmpty ? 'Generating...' : value,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ImageUploadSection extends StatelessWidget {
-  const _ImageUploadSection({
+class _ItemProductCard extends StatelessWidget {
+  const _ItemProductCard({
     required this.imagePath,
-    required this.onPickFromGallery,
+    required this.onTap,
     required this.onPickFromCamera,
-    this.onClear,
+    required this.onPickFromGallery,
+    required this.onRemove,
   });
 
   final String imagePath;
-  final VoidCallback onPickFromGallery;
+  final VoidCallback onTap;
   final VoidCallback onPickFromCamera;
-  final VoidCallback? onClear;
+  final VoidCallback onPickFromGallery;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final normalizedPath = imagePath.trim();
-    final imageFile = normalizedPath.isEmpty ? null : File(normalizedPath);
+    final normalized = imagePath.trim();
+    final imageFile = normalized.isEmpty ? null : File(normalized);
     final hasImage = imageFile != null && imageFile.existsSync();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        border: Border.all(color: colorScheme.primary, width: 2),
-      ),
-      padding: const EdgeInsets.all(AppSizes.paddingLarge),
-      child: Column(
-        children: [
-          if (hasImage)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-              child: Image.file(
-                imageFile,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: hasImage
+          ? Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.file(
+                      imageFile,
+                      fit: BoxFit.cover,
+                    ),
+                    // Gradient overlay
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 80,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.7),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Bottom actions overlay
+                    Positioned(
+                      left: AppSizes.paddingMedium,
+                      right: AppSizes.paddingMedium,
+                      bottom: AppSizes.paddingMedium,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(
+                                AppSizes.radiusSmall,
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.image,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Product Image',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Material(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(
+                              AppSizes.radiusFull,
+                            ),
+                            elevation: 2,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(
+                                AppSizes.radiusFull,
+                              ),
+                              onTap: onTap,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.edit_outlined,
+                                      size: 14,
+                                      color: AppColors.primary,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Change',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSizes.spacingSmall),
+                          Material(
+                            color: AppColors.error,
+                            borderRadius: BorderRadius.circular(
+                              AppSizes.radiusFull,
+                            ),
+                            elevation: 2,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(
+                                AppSizes.radiusFull,
+                              ),
+                              onTap: onRemove,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.delete_outline,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Remove',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
-          else ...[
-            const Icon(
-              Icons.image_outlined,
-              size: AppSizes.iconSizeXLarge,
-              color: AppColors.primary,
-            ),
-            const SizedBox(height: AppSizes.spacingSmall),
-            Text(
-              'Upload Item Image',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.w700,
+          : CustomPaint(
+              painter: _DashedBorderPainter(
+                color: AppColors.primary.withValues(alpha: 0.35),
+                strokeWidth: 1.5,
+                gap: 5,
+                dashLength: 7,
+                radius: AppSizes.radiusLarge,
               ),
-            ),
-            const SizedBox(height: AppSizes.spacingXSmall),
-            Text(
-              'Optional - Add a photo of your item',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSizes.spacingSmall),
-          const SizedBox(height: AppSizes.spacingMedium),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: onPickFromGallery,
-                  icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('Gallery'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(
-                      AppSizes.buttonHeightSmall,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.accentBackground.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+                  onTap: onTap,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSizes.paddingMedium),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.add_photo_alternate_outlined,
+                            size: 26,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Upload Product Photo',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Optional • Visible on calculator & receipts',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.textTheme.bodySmall?.color?.withValues(
+                              alpha: 0.7,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            FilledButton.tonalIcon(
+                              onPressed: onPickFromCamera,
+                              icon: const Icon(
+                                Icons.camera_alt_outlined,
+                                size: 16,
+                              ),
+                              label: const Text('Camera'),
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSizes.paddingMedium,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSizes.spacingMedium),
+                            FilledButton.tonalIcon(
+                              onPressed: onPickFromGallery,
+                              icon: const Icon(
+                                Icons.photo_library_outlined,
+                                size: 16,
+                              ),
+                              label: const Text('Gallery'),
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSizes.paddingMedium,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: AppSizes.spacingSmall),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: onPickFromCamera,
-                  icon: const Icon(Icons.photo_camera_outlined),
-                  label: const Text('Camera'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(
-                      AppSizes.buttonHeightSmall,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (onClear != null) ...[
-            const SizedBox(height: AppSizes.spacingSmall),
-            TextButton.icon(
-              onPressed: onClear,
-              icon: const Icon(Icons.delete_outline),
-              label: const Text('Remove Image'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.error),
             ),
-          ],
-        ],
-      ),
     );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.gap,
+    required this.dashLength,
+    required this.radius,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double gap;
+  final double dashLength;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        strokeWidth / 2,
+        strokeWidth / 2,
+        size.width - strokeWidth,
+        size.height - strokeWidth,
+      ),
+      Radius.circular(radius),
+    );
+
+    final path = Path()..addRRect(rrect);
+    final metrics = path.computeMetrics();
+
+    for (final metric in metrics) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final length = (distance + dashLength < metric.length)
+            ? dashLength
+            : metric.length - distance;
+        final extractPath = metric.extractPath(distance, distance + length);
+        canvas.drawPath(extractPath, paint);
+        distance += dashLength + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.strokeWidth != strokeWidth ||
+        oldDelegate.gap != gap ||
+        oldDelegate.dashLength != dashLength ||
+        oldDelegate.radius != radius;
   }
 }
 
@@ -955,7 +1084,7 @@ class _BarcodeScannerScreenState extends State<_BarcodeScannerScreen> {
               _beepPlayer.play(AssetSource('sounds/scan_beep.wav'));
               Navigator.of(context).pop(code);
             },
-            errorBuilder: (context, error, child) {
+            errorBuilder: (context, error) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSizes.paddingLarge),

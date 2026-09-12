@@ -6,7 +6,9 @@ import '../../../core/database/tables/inventory_items.dart';
 import '../domain/inventory_item_model.dart';
 
 abstract class InventoryRepository {
-  Stream<List<InventoryItemModel>> watchAllItems({bool includeArchived = false});
+  Stream<List<InventoryItemModel>> watchAllItems({
+    bool includeArchived = false,
+  });
   Future<InventoryItemModel?> getItemById(int id);
   Future<String> getNextItemCode();
   Future<int> insertItem(InventoryItemDraft draft);
@@ -21,7 +23,9 @@ class DriftInventoryRepository implements InventoryRepository {
   final DocumentSeriesService _documentSeriesService;
 
   @override
-  Stream<List<InventoryItemModel>> watchAllItems({bool includeArchived = false}) {
+  Stream<List<InventoryItemModel>> watchAllItems({
+    bool includeArchived = false,
+  }) {
     return _db
         .watchAllInventoryItems(includeArchived: includeArchived)
         .map((rows) => rows.map(_mapFromDb).toList());
@@ -46,20 +50,23 @@ class DriftInventoryRepository implements InventoryRepository {
   @override
   Future<int> insertItem(InventoryItemDraft draft) async {
     return _db.transaction(() async {
-      final normalizedCode = await _documentSeriesService.getNextFormattedNumber(
-        DocumentSeriesService.itemModule,
-      );
+      final normalizedCode = await _documentSeriesService
+          .getNextFormattedNumber(DocumentSeriesService.itemModule);
 
       final existing = await _db.getInventoryItemByCode(normalizedCode);
       if (existing != null) {
-        throw StateError('Generated item code already exists. Please check series settings.');
+        throw StateError(
+          'Generated item code already exists. Please check series settings.',
+        );
       }
 
       final id = await _db.insertInventoryItem(
         InventoryItemsCompanion.insert(
           code: normalizedCode,
           barcode: Value(
-            draft.barcode?.trim().isEmpty == true ? null : draft.barcode?.trim(),
+            draft.barcode?.trim().isEmpty == true
+                ? null
+                : draft.barcode?.trim(),
           ),
           name: draft.name.trim(),
           category: draft.category.trim(),
@@ -67,14 +74,18 @@ class DriftInventoryRepository implements InventoryRepository {
           price: draft.price,
           uom: Value(draft.uom.name),
           unitValue: Value(draft.unitValue),
-          imagePath: Value(draft.imagePath?.trim().isEmpty == true
-              ? null
-              : draft.imagePath?.trim()),
+          imagePath: Value(
+            draft.imagePath?.trim().isEmpty == true
+                ? null
+                : draft.imagePath?.trim(),
+          ),
           status: Value(_mapStatusToDb(draft.status)),
         ),
       );
 
-      await _documentSeriesService.incrementSeries(DocumentSeriesService.itemModule);
+      await _documentSeriesService.incrementSeries(
+        DocumentSeriesService.itemModule,
+      );
       return id;
     });
   }
@@ -104,7 +115,9 @@ class DriftInventoryRepository implements InventoryRepository {
       uom: draft.uom.name,
       unitValue: draft.unitValue,
       imagePath: Value(
-        draft.imagePath?.trim().isEmpty == true ? null : draft.imagePath?.trim(),
+        draft.imagePath?.trim().isEmpty == true
+            ? null
+            : draft.imagePath?.trim(),
       ),
       status: _mapStatusToDb(draft.status),
     );
@@ -165,5 +178,4 @@ class DriftInventoryRepository implements InventoryRepository {
       orElse: () => InventoryUom.pcs,
     );
   }
-
 }

@@ -195,7 +195,10 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     try {
       final repository = ref.read(customerRepositoryProvider);
       if (existingCollection == null) {
-        await repository.recordCollection(customerId: customer.id, amount: amount);
+        await repository.recordCollection(
+          customerId: customer.id,
+          amount: amount,
+        );
       } else {
         await repository.updateCollection(
           customerId: customer.id,
@@ -243,9 +246,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
       setState(() {
         _errorMessage = message;
       });
-      messenger.showSnackBar(
-        const SnackBar(content: Text(message)),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         setState(() {
@@ -343,9 +344,10 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                           isSaving: _isSavingCollection,
                           onRefresh: _loadCustomerData,
                           onAddCollection: _showCollectionSheet,
-                          onEditCollection: (collection) => _showCollectionSheet(
-                            existingCollection: collection,
-                          ),
+                          onEditCollection: (collection) =>
+                              _showCollectionSheet(
+                                existingCollection: collection,
+                              ),
                         ),
                       ],
                     ),
@@ -358,10 +360,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
 }
 
 class _CustomerSummaryCard extends StatelessWidget {
-  const _CustomerSummaryCard({
-    required this.customer,
-    required this.onEdit,
-  });
+  const _CustomerSummaryCard({required this.customer, required this.onEdit});
 
   final CustomerModel customer;
   final VoidCallback onEdit;
@@ -498,9 +497,7 @@ class _SummaryStatCard extends StatelessWidget {
                 color: theme.colorScheme.primary,
               ),
               const SizedBox(width: AppSizes.spacingSmall),
-              Expanded(
-                child: Text(label, style: theme.textTheme.bodySmall),
-              ),
+              Expanded(child: Text(label, style: theme.textTheme.bodySmall)),
             ],
           ),
           const SizedBox(height: AppSizes.spacingSmall),
@@ -528,9 +525,7 @@ class _SectionTabs extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: theme.dividerColor),
-        ),
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: TabBar(
         controller: controller,
@@ -598,10 +593,7 @@ class _CreditsTab extends StatelessWidget {
             const SizedBox(height: AppSizes.spacingSmall),
         itemBuilder: (context, index) {
           final credit = credits[index];
-          return _CreditCard(
-            credit: credit,
-            onTap: () => onCreditTap(credit),
-          );
+          return _CreditCard(credit: credit, onTap: () => onCreditTap(credit));
         },
       ),
     );
@@ -609,10 +601,7 @@ class _CreditsTab extends StatelessWidget {
 }
 
 class _CreditCard extends StatelessWidget {
-  const _CreditCard({
-    required this.credit,
-    required this.onTap,
-  });
+  const _CreditCard({required this.credit, required this.onTap});
 
   final CustomerCreditEntry credit;
   final VoidCallback onTap;
@@ -802,7 +791,9 @@ class _CollectionsTab extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(AppSizes.paddingMedium),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(
                         AppSizes.radiusMedium,
                       ),
@@ -828,10 +819,9 @@ class _CollectionsTab extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed:
-                          customer.creditDue > 0 && !isSaving
-                              ? onAddCollection
-                              : null,
+                      onPressed: customer.creditDue > 0 && !isSaving
+                          ? onAddCollection
+                          : null,
                       icon: const Icon(Icons.add_card_outlined),
                       label: Text(
                         isSaving ? 'Saving...' : 'Add Received Amount',
@@ -1026,10 +1016,7 @@ class _EmptyTabState extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorState({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -1044,11 +1031,7 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: AppSizes.spacingMedium),
             Text(message, style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSizes.spacingLarge),

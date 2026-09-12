@@ -8,10 +8,15 @@ abstract class CustomerRepository {
   Stream<List<CustomerModel>> watchAllCustomers();
   Future<CustomerModel?> getCustomerById(int id);
   Future<List<CustomerCreditEntry>> getCreditsForCustomer(int customerId);
-  Future<List<CustomerCollectionEntry>> getCollectionsForCustomer(int customerId);
+  Future<List<CustomerCollectionEntry>> getCollectionsForCustomer(
+    int customerId,
+  );
   Future<int> insertCustomer(CustomerDraft draft);
   Future<void> updateCustomer(int id, CustomerDraft draft);
-  Future<void> recordCollection({required int customerId, required double amount});
+  Future<void> recordCollection({
+    required int customerId,
+    required double amount,
+  });
   Future<void> updateCollection({
     required int customerId,
     required int voucherId,
@@ -42,18 +47,21 @@ class DriftCustomerRepository implements CustomerRepository {
   }
 
   @override
-  Future<List<CustomerCreditEntry>> getCreditsForCustomer(int customerId) async {
-    final rows = await (_db.select(_db.invoices)
-          ..where(
-            (t) =>
-                t.customerId.equals(customerId) &
-                t.paymentMode.equals(PaymentMode.credit.index),
-          )
-          ..orderBy([
-            (t) => OrderingTerm.desc(t.createdAt),
-            (t) => OrderingTerm.desc(t.id),
-          ]))
-        .get();
+  Future<List<CustomerCreditEntry>> getCreditsForCustomer(
+    int customerId,
+  ) async {
+    final rows =
+        await (_db.select(_db.invoices)
+              ..where(
+                (t) =>
+                    t.customerId.equals(customerId) &
+                    t.paymentMode.equals(PaymentMode.credit.index),
+              )
+              ..orderBy([
+                (t) => OrderingTerm.desc(t.createdAt),
+                (t) => OrderingTerm.desc(t.id),
+              ]))
+            .get();
 
     return rows
         .map(
@@ -74,20 +82,21 @@ class DriftCustomerRepository implements CustomerRepository {
   Future<List<CustomerCollectionEntry>> getCollectionsForCustomer(
     int customerId,
   ) async {
-    final query = _db.select(_db.vouchers).join([
-      innerJoin(
-        _db.ledgerEntries,
-        _db.ledgerEntries.voucherId.equalsExp(_db.vouchers.id),
-      ),
-    ])
-      ..where(
-        _db.vouchers.type.equals(_customerCollectionVoucherType) &
-            _db.vouchers.referenceId.equals(customerId),
-      )
-      ..orderBy([
-        OrderingTerm.desc(_db.vouchers.createdAt),
-        OrderingTerm.desc(_db.vouchers.id),
-      ]);
+    final query =
+        _db.select(_db.vouchers).join([
+            innerJoin(
+              _db.ledgerEntries,
+              _db.ledgerEntries.voucherId.equalsExp(_db.vouchers.id),
+            ),
+          ])
+          ..where(
+            _db.vouchers.type.equals(_customerCollectionVoucherType) &
+                _db.vouchers.referenceId.equals(customerId),
+          )
+          ..orderBy([
+            OrderingTerm.desc(_db.vouchers.createdAt),
+            OrderingTerm.desc(_db.vouchers.id),
+          ]);
 
     final rows = await query.get();
     return rows.map((row) {
@@ -144,7 +153,8 @@ class DriftCustomerRepository implements CustomerRepository {
         throw StateError('Unable to update customer');
       }
 
-      await (_db.update(_db.ledgers)..where((t) => t.id.equals(current.ledgerId)))
+      await (_db.update(_db.ledgers)
+            ..where((t) => t.id.equals(current.ledgerId)))
           .write(LedgersCompanion(name: Value(normalizedName)));
     });
   }
@@ -177,20 +187,24 @@ class DriftCustomerRepository implements CustomerRepository {
         );
       }
 
-      final voucherId = await _db.into(_db.vouchers).insert(
-        VouchersCompanion.insert(
-          type: _customerCollectionVoucherType,
-          referenceId: Value(customerId),
-        ),
-      );
+      final voucherId = await _db
+          .into(_db.vouchers)
+          .insert(
+            VouchersCompanion.insert(
+              type: _customerCollectionVoucherType,
+              referenceId: Value(customerId),
+            ),
+          );
 
-      await _db.into(_db.ledgerEntries).insert(
-        LedgerEntriesCompanion.insert(
-          voucherId: voucherId,
-          ledgerId: customer.ledgerId,
-          credit: Value(normalizedAmount),
-        ),
-      );
+      await _db
+          .into(_db.ledgerEntries)
+          .insert(
+            LedgerEntriesCompanion.insert(
+              voucherId: voucherId,
+              ledgerId: customer.ledgerId,
+              credit: Value(normalizedAmount),
+            ),
+          );
 
       await _recalculateCustomerCreditState(
         customer: customer,
@@ -215,7 +229,8 @@ class DriftCustomerRepository implements CustomerRepository {
       }
 
       final context = await _loadCreditStateContext(customerId);
-      final targetCollection = context.collections.cast<_CustomerCollectionRecord?>()
+      final targetCollection = context.collections
+          .cast<_CustomerCollectionRecord?>()
           .firstWhere(
             (collection) => collection?.voucherId == voucherId,
             orElse: () => null,
@@ -239,14 +254,14 @@ class DriftCustomerRepository implements CustomerRepository {
         );
       }
 
-      await (_db.update(_db.ledgerEntries)
-            ..where((t) => t.id.equals(targetCollection.ledgerEntryId)))
-          .write(
-            LedgerEntriesCompanion(
-              credit: Value(normalizedAmount),
-              debit: const Value(0.0),
-            ),
-          );
+      await (_db.update(
+        _db.ledgerEntries,
+      )..where((t) => t.id.equals(targetCollection.ledgerEntryId))).write(
+        LedgerEntriesCompanion(
+          credit: Value(normalizedAmount),
+          debit: const Value(0.0),
+        ),
+      );
 
       await _recalculateCustomerCreditState(
         customer: customer,
@@ -285,14 +300,16 @@ class DriftCustomerRepository implements CustomerRepository {
       (sum, invoice) => sum + invoice.paidAmount,
     );
     final basePaidAmount = representedPaidAmount > context.totalCollectedAmount
-        ? _normalizeMoney(
-            representedPaidAmount - context.totalCollectedAmount,
-          )
+        ? _normalizeMoney(representedPaidAmount - context.totalCollectedAmount)
         : 0.0;
 
-    final targetPaidAmount = _normalizeMoney(basePaidAmount + totalCollectedAmount);
+    final targetPaidAmount = _normalizeMoney(
+      basePaidAmount + totalCollectedAmount,
+    );
     if (targetPaidAmount - totalCreditAmount > _moneyTolerance) {
-      throw StateError('Received amount cannot be more than the current due balance');
+      throw StateError(
+        'Received amount cannot be more than the current due balance',
+      );
     }
 
     var remainingPaidAmount = targetPaidAmount;
@@ -311,16 +328,19 @@ class DriftCustomerRepository implements CustomerRepository {
         totalAmount: invoice.totalAmount,
         paidAmount: nextPaidAmount,
       );
-      await (_db.update(_db.invoices)..where((t) => t.id.equals(invoice.id)))
-          .write(
-            InvoicesCompanion(
-              paidAmount: Value(nextPaidAmount),
-              paymentStatus: Value(nextStatus),
-              updatedAt: Value(now),
-            ),
-          );
+      await (_db.update(
+        _db.invoices,
+      )..where((t) => t.id.equals(invoice.id))).write(
+        InvoicesCompanion(
+          paidAmount: Value(nextPaidAmount),
+          paymentStatus: Value(nextStatus),
+          updatedAt: Value(now),
+        ),
+      );
 
-      remainingPaidAmount = _normalizeMoney(remainingPaidAmount - nextPaidAmount);
+      remainingPaidAmount = _normalizeMoney(
+        remainingPaidAmount - nextPaidAmount,
+      );
     }
 
     if (remainingPaidAmount > _moneyTolerance) {
@@ -340,33 +360,35 @@ class DriftCustomerRepository implements CustomerRepository {
   Future<_CustomerCreditStateContext> _loadCreditStateContext(
     int customerId,
   ) async {
-    final creditInvoices = await (_db.select(_db.invoices)
-          ..where(
-            (t) =>
-                t.customerId.equals(customerId) &
-                t.paymentMode.equals(PaymentMode.credit.index),
-          )
-          ..orderBy([
-            (t) => OrderingTerm.asc(t.createdAt),
-            (t) => OrderingTerm.asc(t.id),
-          ]))
-        .get();
+    final creditInvoices =
+        await (_db.select(_db.invoices)
+              ..where(
+                (t) =>
+                    t.customerId.equals(customerId) &
+                    t.paymentMode.equals(PaymentMode.credit.index),
+              )
+              ..orderBy([
+                (t) => OrderingTerm.asc(t.createdAt),
+                (t) => OrderingTerm.asc(t.id),
+              ]))
+            .get();
 
-    final collectionRows = await (_db.select(_db.vouchers).join([
-      innerJoin(
-        _db.ledgerEntries,
-        _db.ledgerEntries.voucherId.equalsExp(_db.vouchers.id),
-      ),
-    ])
-          ..where(
-            _db.vouchers.type.equals(_customerCollectionVoucherType) &
-                _db.vouchers.referenceId.equals(customerId),
-          )
-          ..orderBy([
-            OrderingTerm.asc(_db.vouchers.createdAt),
-            OrderingTerm.asc(_db.vouchers.id),
-          ]))
-        .get();
+    final collectionRows =
+        await (_db.select(_db.vouchers).join([
+                innerJoin(
+                  _db.ledgerEntries,
+                  _db.ledgerEntries.voucherId.equalsExp(_db.vouchers.id),
+                ),
+              ])
+              ..where(
+                _db.vouchers.type.equals(_customerCollectionVoucherType) &
+                    _db.vouchers.referenceId.equals(customerId),
+              )
+              ..orderBy([
+                OrderingTerm.asc(_db.vouchers.createdAt),
+                OrderingTerm.asc(_db.vouchers.id),
+              ]))
+            .get();
 
     final collections = collectionRows.map((row) {
       final voucher = row.readTable(_db.vouchers);
@@ -382,12 +404,16 @@ class DriftCustomerRepository implements CustomerRepository {
       creditInvoices: creditInvoices,
       collections: collections,
       totalCollectedAmount: _normalizeMoney(
-        collections.fold<double>(0.0, (sum, collection) => sum + collection.amount),
+        collections.fold<double>(
+          0.0,
+          (sum, collection) => sum + collection.amount,
+        ),
       ),
       currentDue: _normalizeMoney(
         creditInvoices.fold<double>(
           0.0,
-          (sum, invoice) => sum + _dueAmount(invoice.totalAmount, invoice.paidAmount),
+          (sum, invoice) =>
+              sum + _dueAmount(invoice.totalAmount, invoice.paidAmount),
         ),
       ),
     );
@@ -400,10 +426,11 @@ class DriftCustomerRepository implements CustomerRepository {
       throw StateError('Customer not found');
     }
 
-    final linkedInvoices = await (_db.select(_db.invoices)
-          ..where((t) => t.customerId.equals(id))
-          ..limit(1))
-        .get();
+    final linkedInvoices =
+        await (_db.select(_db.invoices)
+              ..where((t) => t.customerId.equals(id))
+              ..limit(1))
+            .get();
     if (linkedInvoices.isNotEmpty) {
       throw StateError(
         'This customer already has invoice history and cannot be deleted',
@@ -416,8 +443,9 @@ class DriftCustomerRepository implements CustomerRepository {
         throw StateError('Customer not found');
       }
 
-      await (_db.delete(_db.ledgers)..where((t) => t.id.equals(current.ledgerId)))
-          .go();
+      await (_db.delete(
+        _db.ledgers,
+      )..where((t) => t.id.equals(current.ledgerId))).go();
     });
   }
 
